@@ -94,7 +94,6 @@ namespace {
 			tmp9.in_use = true;
 			peer_struct.in_use = true;
 		}
-
 	} initializer_dummy;
 }
 #endif
@@ -498,7 +497,10 @@ TORRENT_TEST(reverse_rarest_first)
 		, piece_picker::rarest_first | piece_picker::reverse, empty_vector);
 	int expected_common_pieces[] = {3, 2, 5, 0, 6, 4, 1};
 	for (int i = 0; i < int(picked.size()); ++i)
-		TEST_CHECK(picked[i] == piece_block(expected_common_pieces[i / blocks_per_piece], i % blocks_per_piece));
+	{
+		TEST_CHECK(picked[i] == piece_block(expected_common_pieces[i / blocks_per_piece]
+			, i % blocks_per_piece));
+	}
 
 	// piece 3 should NOT be prioritized since it's a partial, and not
 	// reversed. Reversed partials are considered reversed
@@ -1884,7 +1886,8 @@ TORRENT_TEST(reprioritize_downloading)
 	TEST_EQUAL(ret, true);
 
 	// make sure we _DON'T_ pick the partial piece, since it has priority zero
-	int const picked_piece = test_pick(p, piece_picker::rarest_first | piece_picker::prioritize_partials);
+	int const picked_piece = test_pick(p, piece_picker::rarest_first
+		| piece_picker::prioritize_partials);
 	TEST_NE(picked_piece, -1);
 	TEST_NE(picked_piece, 0);
 
@@ -1894,7 +1897,8 @@ TORRENT_TEST(reprioritize_downloading)
 	TEST_EQUAL(ret, true);
 
 	// make sure we pick the partial piece
-	TEST_EQUAL(test_pick(p, piece_picker::rarest_first | piece_picker::prioritize_partials), 0);
+	TEST_EQUAL(test_pick(p, piece_picker::rarest_first
+		| piece_picker::prioritize_partials), 0);
 }
 
 TORRENT_TEST(reprioritize_fully_downloading)
@@ -1910,7 +1914,8 @@ TORRENT_TEST(reprioritize_fully_downloading)
 
 	// make sure we _DON'T_ pick the downloading piece
 	{
-		int const picked_piece = test_pick(p, piece_picker::rarest_first | piece_picker::prioritize_partials);
+		int const picked_piece = test_pick(p, piece_picker::rarest_first
+			| piece_picker::prioritize_partials);
 		TEST_NE(picked_piece, -1);
 		TEST_NE(picked_piece, 0);
 	}
@@ -1921,7 +1926,8 @@ TORRENT_TEST(reprioritize_fully_downloading)
 
 	// make sure we still _DON'T_ pick the downloading piece
 	{
-		int const picked_piece = test_pick(p, piece_picker::rarest_first | piece_picker::prioritize_partials);
+		int const picked_piece = test_pick(p, piece_picker::rarest_first
+			| piece_picker::prioritize_partials);
 		TEST_NE(picked_piece, -1);
 		TEST_NE(picked_piece, 0);
 	}
@@ -1933,7 +1939,8 @@ TORRENT_TEST(reprioritize_fully_downloading)
 
 	// make sure we still _DON'T_ pick the downloading piece
 	{
-		int const picked_piece = test_pick(p, piece_picker::rarest_first | piece_picker::prioritize_partials);
+		int const picked_piece = test_pick(p, piece_picker::rarest_first
+			| piece_picker::prioritize_partials);
 		TEST_NE(picked_piece, -1);
 		TEST_NE(picked_piece, 0);
 	}
@@ -1950,7 +1957,8 @@ TORRENT_TEST(download_filtered_piece)
 
 	// make sure we _DON'T_ pick piece 0
 	{
-		int const picked_piece = test_pick(p, piece_picker::rarest_first | piece_picker::prioritize_partials);
+		int const picked_piece = test_pick(p, piece_picker::rarest_first
+			| piece_picker::prioritize_partials);
 		TEST_NE(picked_piece, -1);
 		TEST_NE(picked_piece, 0);
 	}
@@ -1964,7 +1972,8 @@ TORRENT_TEST(download_filtered_piece)
 
 	{
 		// we still should not pick it
-		int const picked_piece = test_pick(p, piece_picker::rarest_first | piece_picker::prioritize_partials);
+		int const picked_piece = test_pick(p, piece_picker::rarest_first
+			| piece_picker::prioritize_partials);
 		TEST_NE(picked_piece, -1);
 		TEST_NE(picked_piece, 0);
 	}
@@ -1978,4 +1987,5 @@ TORRENT_TEST(download_filtered_piece)
 	TEST_EQUAL(test_pick(p, piece_picker::rarest_first | piece_picker::prioritize_partials), 0);
 }
 
-//TODO: 2 test picking with partial pieces and other peers present so that both backup_pieces and backup_pieces2 are used
+//TODO: 2 test picking with partial pieces and other peers present so that both
+// backup_pieces and backup_pieces2 are used

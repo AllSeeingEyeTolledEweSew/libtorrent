@@ -1017,7 +1017,6 @@ namespace libtorrent
 		{ return m_impl; }
 
 	private:
-
 		template <typename Fun, typename... Args>
 		void async_call(Fun f, Args&&... a) const;
 
@@ -1029,7 +1028,6 @@ namespace libtorrent
 
 		aux::session_impl* m_impl;
 	};
-
 } // namespace libtorrent
 
 #endif // TORRENT_SESSION_HANDLE_HPP_INCLUDED

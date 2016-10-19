@@ -55,7 +55,6 @@ namespace libtorrent
 	{
 	friend class tracker_manager;
 	public:
-
 		udp_tracker_connection(
 			io_service& ios
 			, tracker_manager& man
@@ -68,7 +67,6 @@ namespace libtorrent
 		std::uint32_t transaction_id() const { return m_transaction_id; }
 
 	private:
-
 		enum action_t
 		{
 			action_connect,

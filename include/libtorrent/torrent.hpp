@@ -285,7 +285,6 @@ namespace libtorrent
 		, public std::enable_shared_from_this<torrent>
 	{
 	public:
-
 		torrent(aux::session_interface& ses, int block_size
 			, int seq, bool session_paused, add_torrent_params const& p
 			, sha1_hash const& info_hash);
@@ -763,13 +762,11 @@ namespace libtorrent
 		}
 
 	private:
-
 		// called when we learn that we have a piece
 		// only once per piece
 		void we_have(int index);
 
 	public:
-
 		int num_have() const
 		{
 			// pretend we have every piece when in seed mode
@@ -1102,7 +1099,6 @@ namespace libtorrent
 		enum { no_gauge_state = 0xf };
 
 	private:
-
 		void ip_filter_updated();
 
 		void inc_stats_counter(int c, int value = 1);
@@ -1322,7 +1318,6 @@ namespace libtorrent
 		link m_links[aux::session_interface::num_torrent_lists];
 
 	private:
-
 		// m_num_verified = m_verified.count()
 		std::uint32_t m_num_verified = 0;
 

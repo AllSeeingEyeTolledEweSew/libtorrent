@@ -297,7 +297,12 @@ static_assert(sizeof(job_action_name)/sizeof(job_action_name[0])
 
 
 #define TORRENT_PIECE_ASSERT(cond, piece) \
-	do { if (!(cond)) { assert_print_piece(piece); assert_fail(#cond, __LINE__, __FILE__, TORRENT_FUNCTION, 0); } } TORRENT_WHILE_0
+	do { \
+		if (!(cond)) { \
+			assert_print_piece(piece); \
+			assert_fail(#cond, __LINE__, __FILE__, TORRENT_FUNCTION, 0); \
+		} \
+	} TORRENT_WHILE_0
 
 #else
 #define TORRENT_PIECE_ASSERT(cond, piece) do {} TORRENT_WHILE_0
@@ -1705,7 +1710,6 @@ void block_cache::check_invariant() const
 					p.blocks[k].hashing_count
 					+ p.blocks[k].reading_count
 					+ p.blocks[k].flushing_count, &p);
-
 			}
 			else
 			{

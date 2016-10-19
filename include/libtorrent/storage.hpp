@@ -349,7 +349,6 @@ namespace libtorrent
 		//	flag on the specified file.
 		//
 		//	If an error occurs, ``storage_error`` should be set to reflect it.
-		//
 		virtual void finalize_file(int, storage_error&) {}
 #endif
 
@@ -426,7 +425,6 @@ namespace libtorrent
 #endif
 
 	private:
-
 		void delete_one_file(std::string const& p, error_code& ec);
 
 		void need_partfile();
@@ -556,7 +554,6 @@ namespace libtorrent
 	{
 	friend struct disk_io_thread;
 	public:
-
 		piece_manager(
 			storage_interface* storage_impl
 			, std::shared_ptr<void> const& torrent
@@ -579,7 +576,6 @@ namespace libtorrent
 		storage_interface* get_storage_impl() { return m_storage.get(); }
 
 	private:
-
 		// if error is set and return value is 'no_error' or 'need_full_check'
 		// the error message indicates that the fast resume data was rejected
 		// if 'fatal_disk_error' is returned, the error message indicates what

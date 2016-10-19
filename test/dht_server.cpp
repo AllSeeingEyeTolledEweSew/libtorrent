@@ -55,7 +55,6 @@ using namespace std::placeholders;
 
 struct dht_server
 {
-
 	libtorrent::io_service m_ios;
 	boost::detail::atomic_count m_dht_requests;
 	udp::socket m_socket;
@@ -105,7 +104,8 @@ struct dht_server
 
 	int num_hits() const { return m_dht_requests; }
 
-	static void incoming_packet(error_code const& ec, size_t bytes_transferred, size_t *ret, error_code* error, bool* done)
+	static void incoming_packet(error_code const& ec, size_t bytes_transferred
+		, size_t *ret, error_code* error, bool* done)
 	{
 		*ret = bytes_transferred;
 		*error = ec;

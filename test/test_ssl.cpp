@@ -61,6 +61,8 @@ using namespace libtorrent;
 using std::ignore;
 namespace lt = libtorrent;
 
+namespace {
+
 int const alert_mask = alert::all_categories
 & ~alert::progress_notification
 & ~alert::stats_notification;
@@ -77,25 +79,36 @@ struct test_config_t
 	int ssl_disconnects;
 };
 
+bool const Y = true;
+bool const N = true;
+
 test_config_t test_config[] =
 {
-	// name                                                              sslport sd-cert dl-cert dl-port expect peer-error ssl-disconn
-	{"nobody has a cert (connect to regular port)",                      false,  false,  false,  true,   false, 0, 1},
-	{"nobody has a cert (connect to ssl port)",                          true,   false,  false,  true,   false, 1, 1},
-	{"seed has a cert, but not downloader (connect to regular port)",    false,  true,   false,  true,   false, 0, 1},
-	{"seed has a cert, but not downloader (connect to ssl port)",        true,   true,   false,  true,   false, 1, 1},
-	{"downloader has a cert, but not seed (connect to regular port)",    false,  false,  true,   true,   false, 0, 1},
-	{"downloader has a cert, but not seed (connect to ssl port)",        true,   false,  true,   true,   false, 1, 1},
-	{"both downloader and seed has a cert (connect to regular port)",    false,  true,   true,   true,   false, 0, 1},
-	{"both downloader and seed has a cert (connect to ssl port)",        true,   true,   true,   true,   true,  0, 0},
+	//                                                    sslport
+	//                                                       sd-cert
+	//                                                          dl-cert
+	//                                                             dl-port
+	//                                                                expect
+	//                                                                   peer-error
+	// name                                                                 ssl-disconn
+	{"nobody has a cert (connect to regular port)",       N, N, N, Y, N, 0, 1},
+	{"nobody has a cert (connect to ssl port)",           Y, N, N, Y, N, 1, 1},
+	{"seed has a cert, but not DL (connect to bt port)",  N, Y, N, Y, N, 0, 1},
+	{"seed has a cert, but not DL (connect to ssl port)", Y, Y, N, Y, N, 1, 1},
+	{"DL has a cert, but not seed (connect to bt port)",  N, N, Y, Y, N, 0, 1},
+	{"DL has a cert, but not seed (connect to ssl port)", Y, N, Y, Y, N, 1, 1},
+	{"both DL and seed has a cert (connect to bt port)",  N, Y, Y, Y, N, 0, 1},
+	{"both DL and seed has a cert (connect to ssl port)", Y, Y, Y, Y, Y, 0, 0},
 	// there is a disconnect (or failed connection attempt), that's not a peer
 	// error though, so both counters stay 0
-	{"both downloader and seed has a cert (downloader has no SSL port)", true,   true,   true,   false,  false, 0, 0},
+	{"both DL and seed has a cert (DL has no SSL port)",  Y, Y, Y, N, N, 0, 0},
 };
 
 int peer_disconnects = 0;
 int peer_errors = 0;
 int ssl_peer_disconnects = 0;
+
+}
 
 bool on_alert(alert const* a)
 {
@@ -133,7 +146,8 @@ void test_ssl(int test_idx, bool use_utp)
 
 	test_config_t const& test = test_config[test_idx];
 
-	std::printf("\n%s TEST: %s Protocol: %s\n\n", time_now_string(), test.name, use_utp ? "uTP": "TCP");
+	std::printf("\n%s TEST: %s Protocol: %s\n\n", time_now_string()
+		, test.name, use_utp ? "uTP": "TCP");
 
 	// in case the previous run was terminated
 	error_code ec;
@@ -291,8 +305,9 @@ void test_ssl(int test_idx, bool use_utp)
 	std::printf("ssl_disconnects: %d  expected: %d\n", ssl_peer_disconnects, test.ssl_disconnects);
 	TEST_EQUAL(ssl_peer_disconnects > 0, test.ssl_disconnects > 0);
 
-	std::printf("%s: EXPECT: %s\n", time_now_string(), test.expected_to_complete ? "SUCCEESS" : "FAILURE");
-	std::printf("%s: RESULT: %s\n", time_now_string(), tor2.status().is_seeding ? "SUCCEESS" : "FAILURE");
+	char const* now = time_now_string();
+	std::printf("%s: EXPECT: %s\n", now, test.expected_to_complete ? "SUCCEESS" : "FAILURE");
+	std::printf("%s: RESULT: %s\n", now, tor2.status().is_seeding ? "SUCCEESS" : "FAILURE");
 	TEST_EQUAL(tor2.status().is_seeding, test.expected_to_complete);
 
 	// this allows shutting down the sessions in parallel
