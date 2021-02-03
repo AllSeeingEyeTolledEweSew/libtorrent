@@ -1,0 +1,32 @@
+* general guidelines
+  * test data round-trips
+  * test memory management
+  * don't test correctness
+* url/header inputs
+  * consider non-ascii url or headers to be malformed
+  * test str is valid
+  * test bytes is invalid
+* filename inputs
+  * filenames may be either str or bytes
+  * test ascii str and bytes
+  * test non-ascii str and bytes
+  * test non-unicode str and bytes
+* c-string inputs
+  * consider test as bytes
+  * consider test as bytes is deprecated
+  * consider test as str
+  * consider test as str is deprecated
+* enum inputs
+  * test as ints
+  * test as symbolic types
+* info_hash_t inputs
+  * test as info_hash_t
+  * test as sha1_hash
+  * test as sha256_hash
+
+* input fixtures
+  * should be stored in tests/data
+* temporary filesystem output
+  * should be written to a tempfile.TemporaryDirectory
+* deprecated features
+  * test coverage, but test that they warn

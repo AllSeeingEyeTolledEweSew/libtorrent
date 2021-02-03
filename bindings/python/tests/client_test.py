@@ -1,46 +1,33 @@
-
-import unittest
-import time
 import os
 import subprocess as sub
 import sys
+import time
+import unittest
+
+import importlib_resources
 
 
-# include terminal interface for travis parallel executions of scripts which use
-# terminal features: fix multiple stdin assignment at termios.tcgetattr
-if os.name != 'nt':
-    import pty
+class ClientTest(unittest.TestCase):
 
+    maxDiff = None
 
-class test_example_client(unittest.TestCase):
+    @unittest.skipIf(os.name == "nt", "need to make stdin work on windows")
+    def test_client(self) -> None:
+        import pty
 
-    def test_execute_client(self):
-        if os.name == 'nt':
-            # TODO: fix windows includes of client.py
-            return
-        my_stdin = sys.stdin
-        if os.name != 'nt':
-            master_fd, slave_fd = pty.openpty()
-            # slave_fd fix multiple stdin assignment at termios.tcgetattr
-            my_stdin = slave_fd
+        _, stdin = pty.openpty()
 
-        process = sub.Popen(
-            [sys.executable, "client.py", "url_seed_multi.torrent"],
-            stdin=my_stdin, stdout=sub.PIPE, stderr=sub.PIPE)
-        # python2 has no Popen.wait() timeout
-        time.sleep(5)
-        returncode = process.poll()
-        if returncode is None:
-            # this is an expected use-case
+        with importlib_resources.path("tests.data", "url_seed_multi.torrent") as path:
+            process = sub.Popen(
+                [sys.executable, "client.py", os.fspath(path)],
+                stdin=stdin,
+                stdout=sub.PIPE,
+                stderr=sub.PIPE,
+            )
+            time.sleep(5)
+            early_returncode = process.poll()
             process.kill()
-        err = process.stderr.read().decode("utf-8")
-        self.assertEqual('', err, 'process throw errors: \n' + err)
-        # check error code if process did unexpected end
-        if returncode is not None:
-            # in case of error return: output stdout if nothing was on stderr
-            if returncode != 0:
-                print("stdout:\n" + process.stdout.read().decode("utf-8"))
-            self.assertEqual(returncode, 0, "returncode: " + str(returncode) + "\n"
-                             + "stderr: empty\n"
-                             + "some configuration does not output errors like missing module members,"
-                             + "try to call it manually to get the error message\n")
+            _, stderr = process.communicate()
+
+            self.assertEqual(stderr, b"")
+            self.assertEqual(early_returncode, None)

@@ -1,10 +1,9 @@
-import libtorrent as lt
-
 import unittest
+
+import libtorrent as lt
 
 
 class test_session_stats(unittest.TestCase):
-
     def test_unique(self):
         metrics = lt.session_stats_metrics()
         self.assertTrue(len(metrics) > 40)
