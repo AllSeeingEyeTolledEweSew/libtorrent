@@ -2,16 +2,17 @@
 # vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
 from __future__ import print_function
 
-import sys
-import os
-import resource
-import shutil
-import shlex
-import time
-import subprocess
-import random
-import signal
 import hashlib
+import os
+import random
+import resource
+import shlex
+import shutil
+import signal
+import subprocess
+import sys
+import time
+from typing import List
 
 # this is a disk I/O benchmark script. It runs benchmarks
 # over different number of peers.
@@ -27,7 +28,7 @@ import hashlib
 
 peers = [50, 200, 500, 1000]
 # builds = ['rtorrent', 'utorrent', 'libtorrent']
-builds = ['libtorrent']
+builds = ["libtorrent"]
 
 # the number of peers for the filesystem test. The
 # idea is to stress test the filesystem by using a lot
@@ -51,27 +52,27 @@ default_cache = 400000
 # into RAM
 test_duration = 100
 
-utorrent_version = 'utorrent-server-alpha-v3_3'
+utorrent_version = "utorrent-server-alpha-v3_3"
 
 # make sure the environment is properly set up
 try:
-    if os.name == 'posix':
+    if os.name == "posix":
         resource.setrlimit(resource.RLIMIT_NOFILE, (4000, 5000))
 except Exception:
     if resource.getrlimit(resource.RLIMIT_NOFILE)[0] < 4000:
-        print('please set ulimit -n to at least 4000')
+        print("please set ulimit -n to at least 4000")
         sys.exit(1)
 
 
-def build_stage_dirs():
-    ret = []
+def build_stage_dirs() -> List[str]:
+    ret: List[str] = []
     for i in builds[2:3]:
-        ret.append('stage_%s' % i)
+        ret.append("stage_%s" % i)
     return ret
 
 
 # make sure we have all the binaries available
-binaries = ['client_test', 'connection_tester']
+binaries = ["client_test", "connection_tester"]
 for b in build_stage_dirs():
     for i in binaries:
         p = os.path.join(b, i)
@@ -80,134 +81,173 @@ for b in build_stage_dirs():
             sys.exit(1)
 
 # make sure we have a test torrent
-if not os.path.exists('test.torrent'):
-    print('generating test torrent')
+if not os.path.exists("test.torrent"):
+    print("generating test torrent")
     # generate a 100 GB torrent, to make sure it won't all fit in physical RAM
-    os.system('./connection_tester gen-torrent -s 100000 -t test.torrent')
+    os.system("./connection_tester gen-torrent -s 100000 -t test.torrent")
 
 # use a new port for each test to make sure they keep working
 # this port is incremented for each test run
 port = 10000 + random.randint(0, 40000)
 
 try:
-    os.mkdir('benchmark-dir')
+    os.mkdir("benchmark-dir")
 except Exception:
     pass
 
 
-def clear_caches():
-    if 'linux' in sys.platform:
-        os.system('sync')
+def clear_caches() -> None:
+    if "linux" in sys.platform:
+        os.system("sync")
         try:
-            open('/proc/sys/vm/drop_caches', 'w').write('3')
+            open("/proc/sys/vm/drop_caches", "w").write("3")
         except Exception:
             pass
-    elif 'darwin' in sys.platform:
-        os.system('purge')
+    elif "darwin" in sys.platform:
+        os.system("purge")
 
 
-def build_utorrent_commandline(config, port):
-    num_peers = config['num-peers']
-    torrent_path = config['torrent']
+class Config:
+    def __init__(
+        self,
+        *,
+        test: str,
+        save_path: str,
+        num_peers: int,
+        cache_size: int,
+        build: str,
+        profile: str,
+        disk_threads: int,
+        torrent: str,
+        disable_disk: bool,
+    ):
+        self.test = test
+        self.save_path = save_path
+        self.num_peers = num_peers
+        self.cache_size = cache_size
+        self.build = build
+        self.profile = profile
+        self.disk_threads = disk_threads
+        self.torrent = torrent
+        self.disable_disk = disable_disk
+
+
+def build_utorrent_commandline(config: Config, port: int) -> str:
+    num_peers = config.num_peers
+    torrent_path = config.torrent
     target_folder = build_target_folder(config)
 
-    try:
-        os.mkdir('utorrent_session')
-    except Exception:
-        pass
-    with open('utorrent_session/settings.dat', 'w+') as cfg:
+    os.makedirs("utorrent_session", exist_ok=True)
+    save_path = os.fsencode(config.save_path)
+    with open("utorrent_session/settings.dat", "wb+") as cfg:
 
-        cfg.write('d')
-        cfg.write('20:ul_slots_per_torrenti%de' % num_peers)
-        cfg.write('17:conns_per_torrenti%de' % num_peers)
-        cfg.write('14:conns_globallyi%de' % num_peers)
-        cfg.write('9:bind_porti%de' % port)
-        cfg.write('19:dir_active_download%d:%s' % (len(config['save-path']),
-                                                   config['save-path']))
-        cfg.write('19:diskio.sparse_filesi1e')
-        cfg.write('14:cache.overridei1e')
-        cfg.write('19:cache.override_sizei%de' % int(config['cache-size'] *
-                                                     16 / 1024))
-        cfg.write('17:dir_autoload_flagi1e')
-        cfg.write('12:dir_autoload8:autoload')
-        cfg.write('11:logger_maski4294967295e')
-        cfg.write('1:vi0e')
-        cfg.write('12:webui.enablei1e')
-        cfg.write('19:webui.enable_listeni1e')
-        cfg.write('14:webui.hashword20:' + hashlib.sha1(
-            'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaadmin').digest())
-        cfg.write('10:webui.porti8080e')
-        cfg.write('10:webui.salt32:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')
-        cfg.write('14:webui.username5:admin')
-        cfg.write('e')
+        cfg.write(b"d")
+        cfg.write(b"20:ul_slots_per_torrenti%de" % num_peers)
+        cfg.write(b"17:conns_per_torrenti%de" % num_peers)
+        cfg.write(b"14:conns_globallyi%de" % num_peers)
+        cfg.write(b"9:bind_porti%de" % port)
+        cfg.write(b"19:dir_active_download%d:%s" % (len(save_path), save_path))
+        cfg.write(b"19:diskio.sparse_filesi1e")
+        cfg.write(b"14:cache.overridei1e")
+        cfg.write(b"19:cache.override_sizei%de" % int(config.cache_size * 16 / 1024))
+        cfg.write(b"17:dir_autoload_flagi1e")
+        cfg.write(b"12:dir_autoload8:autoload")
+        cfg.write(b"11:logger_maski4294967295e")
+        cfg.write(b"1:vi0e")
+        cfg.write(b"12:webui.enablei1e")
+        cfg.write(b"19:webui.enable_listeni1e")
+        cfg.write(
+            b"14:webui.hashword20:"
+            + hashlib.sha1(b"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaadmin").digest()
+        )
+        cfg.write(b"10:webui.porti8080e")
+        cfg.write(b"10:webui.salt32:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+        cfg.write(b"14:webui.username5:admin")
+        cfg.write(b"e")
 
-    try:
-        os.mkdir('utorrent_session/autoload')
-    except Exception:
-        pass
-    try:
-        shutil.copy(torrent_path, 'utorrent_session/autoload/')
-    except Exception:
-        pass
-    return './%s/utserver -logfile %s/client.log -settingspath ' % \
-        (utorrent_version, target_folder) + \
-        'utorrent_session'
+    os.makedirs("utorrent_session/autoload", exist_ok=True)
+    shutil.copy(torrent_path, "utorrent_session/autoload/")
+    return (
+        "./%s/utserver -logfile %s/client.log -settingspath "
+        % (utorrent_version, target_folder)
+        + "utorrent_session"
+    )
 
 
-def build_rtorrent_commandline(config, port):
-    num_peers = config['num-peers']
-    torrent_path = config['torrent']
+def build_rtorrent_commandline(config: Config, port: int) -> str:
+    num_peers = config.num_peers
+    torrent_path = config.torrent
     target_folder = build_target_folder(config)
 
     if os.path.exists(target_folder):
-        add_command = ''
+        add_command = ""
     else:
-        try:
-            os.mkdir(target_folder)
-        except Exception:
-            pass
+        os.makedirs(target_folder, exist_ok=True)
         # it seems rtorrent may delete the original torrent when it's being added
         try:
             shutil.copy(torrent_path, target_folder)
-        except Exception:
+        except FileNotFoundError:
             pass
-        add_command = '-O load_start_verbose=%s/%s ' % (target_folder, torrent_path)
+        add_command = "-O load_start_verbose=%s/%s " % (target_folder, torrent_path)
 
-    return ('rtorrent -d %s -n -p %d-%d -O max_peers=%d -O max_uploads=%d %s -s '
-            '%s -O max_memory_usage=128000000000') % (
-                config['save-path'], port, port, num_peers, num_peers, add_command, target_folder)
+    return (
+        "rtorrent -d %s -n -p %d-%d -O max_peers=%d -O max_uploads=%d %s -s "
+        "%s -O max_memory_usage=128000000000"
+    ) % (
+        config.save_path,
+        port,
+        port,
+        num_peers,
+        num_peers,
+        add_command,
+        target_folder,
+    )
 
 
-def build_libtorrent_commandline(config, port):
-    num_peers = config['num-peers']
-    torrent_path = config['torrent']
+def build_libtorrent_commandline(config: Config, port: int) -> str:
+    num_peers = config.num_peers
+    torrent_path = config.torrent
     target_folder = build_target_folder(config)
 
-    return ('./client_test -k -O -F 500 --enable_upnp=0 --enable_natpmp=0 '
-            '--enable_dht=0 --mixed_mode_algorithm=0 --peer_timeout=%d '
-            '--listen_queue_size=%d --unchoke_slots_limit=%d -T %d '
-            '--connections_limit=%d --cache_size=%d -s "%s" '
-            '--listen_interfaces="0.0.0.0:%d" --aio_threads=%d '
-            '-f %s/client.log %s') % (
-                test_duration, num_peers, num_peers, num_peers, num_peers, config['cache-size'],
-                config['save-path'], port, config['disk-threads'], target_folder, torrent_path)
+    return (
+        "./client_test -k -O -F 500 --enable_upnp=0 --enable_natpmp=0 "
+        "--enable_dht=0 --mixed_mode_algorithm=0 --peer_timeout=%d "
+        "--listen_queue_size=%d --unchoke_slots_limit=%d -T %d "
+        '--connections_limit=%d --cache_size=%d -s "%s" '
+        '--listen_interfaces="0.0.0.0:%d" --aio_threads=%d '
+        "-f %s/client.log %s"
+    ) % (
+        test_duration,
+        num_peers,
+        num_peers,
+        num_peers,
+        num_peers,
+        config.cache_size,
+        config.save_path,
+        port,
+        config.disk_threads,
+        target_folder,
+        torrent_path,
+    )
 
 
-def build_commandline(config, port):
+def build_commandline(config: Config, port: int) -> str:
 
-    if config['build'] == 'utorrent':
+    if config.build == "utorrent":
         return build_utorrent_commandline(config, port)
 
-    if config['build'] == 'rtorrent':
+    if config.build == "rtorrent":
         return build_rtorrent_commandline(config, port)
 
-    if config['build'] == 'libtorrent':
+    if config.build == "libtorrent":
         return build_libtorrent_commandline(config, port)
 
+    raise ValueError(f"unknown build {config.build!r}")
 
-def delete_files(files):
+
+def delete_files(files: List[str]) -> None:
     for i in files:
-        print('deleting %s' % i)
+        print("deleting %s" % i)
         try:
             os.remove(i)
         except Exception:
@@ -216,36 +256,52 @@ def delete_files(files):
             except Exception:
                 try:
                     if os.path.exists(i):
-                        print('failed to delete %s' % i)
+                        print("failed to delete %s" % i)
                 except Exception:
                     pass
 
 
-def build_test_config(num_peers=default_peers, cache_size=default_cache,
-                      test='download', build='libtorrent', profile='', disk_threads=16,
-                      torrent='test.torrent', disable_disk=False):
-    config = {'test': test, 'save-path': os.path.join('.', 'benchmark-dir'), 'num-peers': num_peers,
-              'cache-size': cache_size, 'build': build, 'profile': profile,
-              'disk-threads': disk_threads, 'torrent': torrent, 'disable-disk': disable_disk}
-    return config
+def build_test_config(
+    num_peers: int = default_peers,
+    cache_size: int = default_cache,
+    test: str = "download",
+    build: str = "libtorrent",
+    profile: str = "",
+    disk_threads: int = 16,
+    torrent: str = "test.torrent",
+    disable_disk: bool = False,
+) -> Config:
+    return Config(
+        test=test,
+        save_path=os.path.join(".", "benchmark-dir"),
+        num_peers=num_peers,
+        cache_size=cache_size,
+        build=build,
+        profile=profile,
+        disk_threads=disk_threads,
+        torrent=torrent,
+        disable_disk=disable_disk,
+    )
 
 
-def build_target_folder(config):
+def build_target_folder(config: Config) -> str:
 
-    no_disk = ''
-    if config['disable-disk']:
-        no_disk = '_no-disk'
+    no_disk = ""
+    if config.disable_disk:
+        no_disk = "_no-disk"
 
-    return 'results_%s_%s_%d_%d_%d%s' % (config['build'],
-                                         config['test'],
-                                         config['num-peers'],
-                                         config['cache-size'],
-                                         config['disk-threads'],
-                                         no_disk)
+    return "results_%s_%s_%d_%d_%d%s" % (
+        config.build,
+        config.test,
+        config.num_peers,
+        config.cache_size,
+        config.disk_threads,
+        no_disk,
+    )
 
 
-def find_library(name):
-    paths = ['/usr/lib64/', '/usr/local/lib64/', '/usr/lib/', '/usr/local/lib/']
+def find_library(name: str) -> str:
+    paths = ["/usr/lib64/", "/usr/local/lib64/", "/usr/lib/", "/usr/local/lib/"]
 
     for p in paths:
         try:
@@ -256,8 +312,8 @@ def find_library(name):
     return name
 
 
-def find_binary(names):
-    paths = ['/usr/bin/', '/usr/local/bin/']
+def find_binary(names: List[str]) -> str:
+    paths = ["/usr/bin/", "/usr/local/bin/"]
     for n in names:
         for p in paths:
             try:
@@ -268,31 +324,41 @@ def find_binary(names):
     return names[0]
 
 
-def run_test(config):
+def run_test(config: Config) -> None:
 
     j = os.path.join
 
     target_folder = build_target_folder(config)
     if os.path.exists(target_folder):
-        print('results already exists, skipping test (%s)' % target_folder)
+        print("results already exists, skipping test (%s)" % target_folder)
         return
 
-    print('\n\n*********************************')
-    print('*          RUNNING TEST         *')
-    print('*********************************\n\n')
-    print('%s %s' % (config['build'], config['test']))
+    print("\n\n*********************************")
+    print("*          RUNNING TEST         *")
+    print("*********************************\n\n")
+    print("%s %s" % (config.build, config.test))
 
     # make sure any previous test file is removed
-    # don't clean up unless we're running a download-test, so that we leave the test file
-    # complete for a seed test.
-    delete_files(['utorrent_session/settings.dat', 'utorrent_session/settings.dat.old', 'asserts.log'])
-    if config['test'] == 'download' or config['test'] == 'dual':
-        delete_files([j(config['save-path'], 'test'),
-                      '.ses_state',
-                      j(config['save-path'], '.resume'),
-                      'utorrent_session',
-                      '.dht_state',
-                      'rtorrent_session'])
+    # don't clean up unless we're running a download-test, so that we leave the test
+    # file complete for a seed test.
+    delete_files(
+        [
+            "utorrent_session/settings.dat",
+            "utorrent_session/settings.dat.old",
+            "asserts.log",
+        ]
+    )
+    if config.test == "download" or config.test == "dual":
+        delete_files(
+            [
+                j(config.save_path, "test"),
+                ".ses_state",
+                j(config.save_path, ".resume"),
+                "utorrent_session",
+                ".dht_state",
+                "rtorrent_session",
+            ]
+        )
 
     try:
         os.mkdir(target_folder)
@@ -302,75 +368,95 @@ def run_test(config):
     # save off the command line for reference
     global port
     cmdline = build_commandline(config, port)
-    binary = cmdline.split(' ')[0]
+    binary = cmdline.split(" ")[0]
     environment = None
-    if config['profile'] == 'tcmalloc':
-        environment = {'LD_PRELOAD': find_library('libprofiler.so.0'),
-                       'CPUPROFILE': j(target_folder, 'cpu_profile.prof')}
-    if config['profile'] == 'memory':
-        environment = {'LD_PRELOAD': find_library('libprofiler.so.0'),
-                       'HEAPPROFILE': j(target_folder, 'heap_profile.prof')}
-    if config['profile'] == 'perf':
-        cmdline = 'perf record -g --output=' + \
-            j(target_folder, 'perf_profile.prof') + ' ' + cmdline
-    with open(j(target_folder, 'cmdline.txt'), 'w+') as f:
+    if config.profile == "tcmalloc":
+        environment = {
+            "LD_PRELOAD": find_library("libprofiler.so.0"),
+            "CPUPROFILE": j(target_folder, "cpu_profile.prof"),
+        }
+    if config.profile == "memory":
+        environment = {
+            "LD_PRELOAD": find_library("libprofiler.so.0"),
+            "HEAPPROFILE": j(target_folder, "heap_profile.prof"),
+        }
+    if config.profile == "perf":
+        cmdline = (
+            "perf record -g --output="
+            + j(target_folder, "perf_profile.prof")
+            + " "
+            + cmdline
+        )
+    with open(j(target_folder, "cmdline.txt"), "w+") as f:
         f.write(cmdline)
 
-    with open(j(target_folder, 'config.txt'), 'w+') as f:
-        print(config, file=f)
+    with open(j(target_folder, "config.txt"), "w+") as f:
+        print(config.__dict__, file=f)
 
-    print('clearing disk cache')
+    print("clearing disk cache")
     clear_caches()
-    print('OK')
-    client_output = open(j(target_folder, 'client.output'), 'w+')
-    client_error = open(j(target_folder, 'client.error'), 'w+')
-    print('launching: %s' % cmdline)
+    print("OK")
+    client_output = open(j(target_folder, "client.output"), "w+")
+    client_error = open(j(target_folder, "client.error"), "w+")
+    print("launching: %s" % cmdline)
     client = subprocess.Popen(
         shlex.split(cmdline),
         stdout=client_output,
         stdin=subprocess.PIPE,
         stderr=client_error,
-        env=environment)
-    print('OK')
+        env=environment,
+    )
+    print("OK")
     # enable disk stats printing
-    if config['build'] == 'libtorrent':
-        print('x', end=' ', file=client.stdin)
+    if config.build == "libtorrent":
+        assert client.stdin is not None  # helps mypy
+        client.stdin.write(b"x ")
     time.sleep(4)
-    test_dir = 'upload' if config['test'] == 'download' else 'download' if config['test'] == 'upload' else 'dual'
-    cmdline = './connection_tester %s -c %d -d 127.0.0.1 -p %d -t %s' % (
-        test_dir, config['num-peers'], port, config['torrent'])
-    print('launching: %s' % cmdline)
-    tester_output = open(j(target_folder, 'tester.output'), 'w+')
+    test_dir = (
+        "upload"
+        if config.test == "download"
+        else "download"
+        if config.test == "upload"
+        else "dual"
+    )
+    cmdline = "./connection_tester %s -c %d -d 127.0.0.1 -p %d -t %s" % (
+        test_dir,
+        config.num_peers,
+        port,
+        config.torrent,
+    )
+    print("launching: %s" % cmdline)
+    tester_output = open(j(target_folder, "tester.output"), "w+")
     tester = subprocess.Popen(shlex.split(cmdline), stdout=tester_output)
-    print('OK')
+    print("OK")
 
     time.sleep(2)
 
-    print('\n')
+    print("\n")
     i = 0
     while True:
         time.sleep(1)
-        tester.poll()
-        if tester.returncode is not None:
-            print('tester terminated')
+        returncode = tester.poll()
+        if returncode is not None:
+            print("tester terminated")
             break
-        client.poll()
-        if client.returncode is not None:
-            print('client terminated')
+        returncode = client.poll()
+        if returncode is not None:
+            print("client terminated")
             break
-        print('\r%d / %d\x1b[K' % (i, test_duration), end=' ')
+        print("\r%d / %d\x1b[K" % (i, test_duration), end=" ")
         sys.stdout.flush()
         i += 1
         # in download- and dual tests, connection_tester will exit once the
         # client is done downloading. In upload tests, we'll upload for
         # 'test_duration' number of seconds until we end the test
-        if config['test'] != 'download' and config['test'] != 'dual' and i >= test_duration:
+        if config.test != "download" and config.test != "dual" and i >= test_duration:
             break
-    print('\n')
+    print("\n")
 
-    if client.returncode is None:
+    if client.poll() is None:
         try:
-            print('killing client')
+            print("killing client")
             client.send_signal(signal.SIGINT)
         except Exception:
             pass
@@ -382,44 +468,63 @@ def run_test(config):
     client_output.close()
     terminate = False
     if tester.returncode != 0:
-        print('tester returned %d' % tester.returncode)
+        print("tester returned %d" % tester.returncode)
         terminate = True
     if client.returncode != 0:
-        print('client returned %d' % client.returncode)
+        print("client returned %d" % client.returncode)
         terminate = True
 
     try:
-        shutil.copy('asserts.log', target_folder)
+        shutil.copy("asserts.log", target_folder)
     except Exception:
         pass
 
     os.chdir(target_folder)
 
-    if config['build'] == 'libtorrent':
+    if config.build == "libtorrent":
         # parse session stats
-        print('parsing session log')
-        os.system('python ../../tools/parse_session_stats.py client.log')
+        print("parsing session log")
+        os.system("python ../../tools/parse_session_stats.py client.log")
 
-    os.chdir('..')
+    os.chdir("..")
 
-    if config['profile'] == 'tcmalloc':
-        print('analyzing CPU profile [%s]' % binary)
-        os.system('%s --pdf %s %s/cpu_profile.prof >%s/cpu_profile.pdf' %
-                  (find_binary(['google-pprof', 'pprof']), binary, target_folder, target_folder))
-    if config['profile'] == 'memory':
+    if config.profile == "tcmalloc":
+        print("analyzing CPU profile [%s]" % binary)
+        os.system(
+            "%s --pdf %s %s/cpu_profile.prof >%s/cpu_profile.pdf"
+            % (
+                find_binary(["google-pprof", "pprof"]),
+                binary,
+                target_folder,
+                target_folder,
+            )
+        )
+    if config.profile == "memory":
         for i in range(1, 300):
-            profile = j(target_folder, 'heap_profile.prof.%04d.heap' % i)
+            profile = j(target_folder, "heap_profile.prof.%04d.heap" % i)
             try:
                 os.stat(profile)
             except Exception:
                 break
-            print('analyzing heap profile [%s] %d' % (binary, i))
-            os.system('%s --pdf %s %s >%s/heap_profile_%d.pdf' %
-                      (find_binary(['google-pprof', 'pprof']), binary, profile, target_folder, i))
-    if config['profile'] == 'perf':
-        print('analyzing CPU profile [%s]' % binary)
-        os.system(('perf report --input=%s/perf_profile.prof --threads --demangle --show-nr-samples '
-                   '>%s/profile.txt' % (target_folder, target_folder)))
+            print("analyzing heap profile [%s] %d" % (binary, i))
+            os.system(
+                "%s --pdf %s %s >%s/heap_profile_%d.pdf"
+                % (
+                    find_binary(["google-pprof", "pprof"]),
+                    binary,
+                    profile,
+                    target_folder,
+                    i,
+                )
+            )
+    if config.profile == "perf":
+        print("analyzing CPU profile [%s]" % binary)
+        os.system(
+            (
+                "perf report --input=%s/perf_profile.prof --threads --demangle "
+                "--show-nr-samples >%s/profile.txt" % (target_folder, target_folder)
+            )
+        )
 
     port += 1
 
@@ -428,11 +533,11 @@ def run_test(config):
 
 
 for b in builds:
-    for test in ['upload', 'download', 'dual']:
-        config = build_test_config(build=b, test=test, profile='perf')
+    for test in ["upload", "download", "dual"]:
+        config = build_test_config(build=b, test=test, profile="perf")
         run_test(config)
 
-for p in peers:
-    for test in ['upload', 'download', 'dual']:
-        config = build_test_config(num_peers=p, test=test, profile='perf')
+for peer in peers:
+    for test in ["upload", "download", "dual"]:
+        config = build_test_config(num_peers=peer, test=test, profile="perf")
         run_test(config)

@@ -3,41 +3,52 @@
 import glob
 import os
 import sys
+from typing import List
 
 paths = [
-    'test/*.cpp',
-    'src/*.cpp',
-    'src/kademlia/*.cpp',
-    'include/libtorrent/*.hpp',
-    'include/libtorrent/kademlia/*.hpp',
-    'include/libtorrent/aux_/*.hpp',
-    'include/libtorrent/extensions/*.hpp']
+    "test/*.cpp",
+    "src/*.cpp",
+    "src/kademlia/*.cpp",
+    "include/libtorrent/*.hpp",
+    "include/libtorrent/kademlia/*.hpp",
+    "include/libtorrent/aux_/*.hpp",
+    "include/libtorrent/extensions/*.hpp",
+]
 
-os.system('(cd .. ; ctags %s 2>/dev/null)' % ' '.join(paths))
+os.system("(cd .. ; ctags %s 2>/dev/null)" % " ".join(paths))
 
 files = []
 
 for p in paths:
-    files.extend(glob.glob(os.path.join('..', p)))
+    files.extend(glob.glob(os.path.join("..", p)))
 
-items = []
+
+class Item:
+    def __init__(self, *, location: str, priority: int, todo: str, context: str = ""):
+        self.location = location
+        self.priority = priority
+        self.todo = todo
+        self.context = context
+
+
+items: List[Item] = []
 
 # keeps 20 non-comment lines, used to get more context around
 # todo-items
-context = []
+context: List[str] = []
 
 priority_count = [0, 0, 0, 0, 0]
 
 
-def html_sanitize(s):
-    ret = ''
+def html_sanitize(s: str) -> str:
+    ret = ""
     for i in s:
-        if i == '<':
-            ret += '&lt;'
-        elif i == '>':
-            ret += '&gt;'
-        elif i == '&':
-            ret += '&amp;'
+        if i == "<":
+            ret += "&lt;"
+        elif i == ">":
+            ret += "&gt;"
+        elif i == "&":
+            ret += "&amp;"
         else:
             ret += i
     return ret
@@ -46,46 +57,49 @@ def html_sanitize(s):
 for f in files:
     h = open(f)
 
-    state = ''
+    state = ""
     line_no = 0
     context_lines = 0
 
     for orig_line in h:
         line_no += 1
         line = orig_line.strip()
-        if 'TODO:' in line and line.startswith('//'):
-            line = line.split('TODO:')[1].strip()
-            state = 'todo'
-            items.append({})
-            items[-1]['location'] = '%s:%d' % (f, line_no)
-            items[-1]['priority'] = 0
-            if line[0] in '0123456789':
-                items[-1]['priority'] = int(line[0])
+        if "TODO:" in line and line.startswith("//"):
+            line = line.split("TODO:")[1].strip()
+            state = "todo"
+            location = "%s:%d" % (f, line_no)
+            prio = 0
+            if line[0] in "0123456789":
+                prio = int(line[0])
                 if int(line[0]) > 5:
-                    print('priority too high: ' + line)
+                    print("priority too high: " + line)
                     sys.exit(1)
 
                 line = line[1:].strip()
-            items[-1]['todo'] = line
-            prio = items[-1]['priority']
+            todo = line
             if prio >= 0 and prio <= 4:
                 priority_count[prio] += 1
+            items.append(Item(priority=prio, todo=todo, location=location))
             continue
 
-        if state == '':
+        if state == "":
             context.append(html_sanitize(orig_line))
             if len(context) > 20:
                 context.pop(0)
             continue
 
-        if state == 'todo':
-            if line.strip().startswith('//'):
-                items[-1]['todo'] += '\n'
-                items[-1]['todo'] += line[2:].strip()
+        if state == "todo":
+            if line.strip().startswith("//"):
+                items[-1].todo += "\n"
+                items[-1].todo += line[2:].strip()
             else:
-                state = 'context'
-                items[-1]['context'] = ''.join(context) + \
-                    '<div style="background: #ffff00" width="100%">' + html_sanitize(orig_line) + '</div>'
+                state = "context"
+                items[-1].context = (
+                    "".join(context)
+                    + '<div style="background: #ffff00" width="100%">'
+                    + html_sanitize(orig_line)
+                    + "</div>"
+                )
                 context_lines = 1
 
                 context.append(html_sanitize(orig_line))
@@ -93,19 +107,19 @@ for f in files:
                     context.pop(0)
             continue
 
-        if state == 'context':
-            items[-1]['context'] += html_sanitize(orig_line)
+        if state == "context":
+            items[-1].context += html_sanitize(orig_line)
             context_lines += 1
 
             context.append(html_sanitize(orig_line))
             if len(context) > 20:
                 context.pop(0)
             if context_lines > 30:
-                state = ''
+                state = ""
 
     h.close()
 
-items.sort(key=lambda x: x['priority'], reverse=True)
+items.sort(key=lambda x: x.priority, reverse=True)
 
 # for i in items:
 #   print('\n\n', i['todo'], '\n')
@@ -114,8 +128,9 @@ items.sort(key=lambda x: x['priority'], reverse=True)
 #   if 'context' in i:
 #       print(i['context'], '\n')
 
-out = open('todo.html', 'w+')
-out.write('''<html><head>
+out = open("todo.html", "w+")
+out.write(
+    """<html><head>
 <script type="text/javascript">
 /* <![CDATA[ */
 	var expanded = -1
@@ -143,24 +158,44 @@ out.write('''<html><head>
 <span style="color: #3c3">%d relevant</span>
 <span style="color: #77f">%d feasible</span>
 <span style="color: #999">%d notes</span>
-          <table width="100%%" border="1" style="border-collapse: collapse;">''' # noqa
-          % (priority_count[4], priority_count[3], priority_count[2], priority_count[1], priority_count[0]))
+          <table width="100%%" border="1" style="border-collapse: collapse;">"""  # noqa
+    % (
+        priority_count[4],
+        priority_count[3],
+        priority_count[2],
+        priority_count[1],
+        priority_count[0],
+    )
+)
 
-prio_colors = ['#ccc', '#ccf', '#cfc', '#fcc', '#f44']
+prio_colors = ["#ccc", "#ccf", "#cfc", "#fcc", "#f44"]
 
 index = 0
 for i in items:
-    if 'context' not in i:
-        i['context'] = ''
-    out.write(('<tr style="background: %s"><td>relevance&nbsp;%d</td>'
-               '<td><a href="javascript:expand(%d)">%s</a></td><td>%s</td></tr>')
-              % (prio_colors[i['priority']], i['priority'], index, i['location'], i['todo'].replace('\n', ' ')))
+    out.write(
+        (
+            '<tr style="background: %s"><td>relevance&nbsp;%d</td>'
+            '<td><a href="javascript:expand(%d)">%s</a></td><td>%s</td></tr>'
+        )
+        % (
+            prio_colors[i.priority],
+            i.priority,
+            index,
+            i.location,
+            i.todo.replace("\n", " "),
+        )
+    )
 
     out.write(
-        ('<tr id="%d" style="display: none;" colspan="3"><td colspan="3"><h2>%s</h2><h4>%s</h4>'
-         '<pre style="background: #f6f6f6; border: solid 1px #ddd;">%s</pre></td></tr>') %
-        (index, i['todo'], i['location'], i['context']))
+        (
+            '<tr id="%d" style="display: none;" colspan="3"><td colspan="3">'
+            "<h2>%s</h2><h4>%s</h4>"
+            '<pre style="background: #f6f6f6; border: solid 1px #ddd;">%s</pre>'
+            "</td></tr>"
+        )
+        % (index, i.todo, i.location, i.context)
+    )
     index += 1
 
-out.write('</table></body></html>')
+out.write("</table></body></html>")
 out.close()

@@ -1,104 +1,124 @@
 #!/usr/bin/env python3
 from __future__ import print_function
 
-f = open('../include/libtorrent/settings_pack.hpp')
+from typing import List
 
-out = open('settings.rst', 'w+')
+f = open("../include/libtorrent/settings_pack.hpp")
+
+out = open("settings.rst", "w+")
 all_names = set()
 
 
-def print_field(str, width):
-    return '%s%s' % (str, ' ' * (width - len(str)))
+def print_field(value: str, width: int) -> str:
+    return "%s%s" % (value, " " * (width - len(value)))
 
 
-def render_section(names, description, type, default_values):
-    max_name_len = max(len(max(names, key=len)), len('name'))
-    max_type_len = max(len(type), len('type'))
-    max_val_len = max(len(max(default_values, key=len)), len('default'))
+def render_section(
+    names: List[str], description: str, type_name: str, default_values: List[str]
+) -> None:
+    max_name_len = max(len(max(names, key=len)), len("name"))
+    max_type_len = max(len(type_name), len("type"))
+    max_val_len = max(len(max(default_values, key=len)), len("default"))
 
     # add link targets for the rest of the manual to reference
     for n in names:
-        print('.. _%s:\n' % n, file=out)
-        for w in n.split('_'):
+        print(".. _%s:\n" % n, file=out)
+        for w in n.split("_"):
             all_names.add(w)
 
     if len(names) > 0:
-        print('.. raw:: html\n', file=out)
+        print(".. raw:: html\n", file=out)
         for n in names:
             print('\t<a name="%s"></a>' % n, file=out)
-        print('', file=out)
+        print("", file=out)
 
-    separator = '+-' + ('-' * max_name_len) + '-+-' + ('-' * max_type_len) + '-+-' + ('-' * max_val_len) + '-+'
+    separator = (
+        "+-"
+        + ("-" * max_name_len)
+        + "-+-"
+        + ("-" * max_type_len)
+        + "-+-"
+        + ("-" * max_val_len)
+        + "-+"
+    )
 
     # build a table for the settings, their type and default value
     print(separator, file=out)
     print(
-        '| %s | %s | %s |' %
-        (print_field(
-            'name', max_name_len), print_field(
-            'type', max_type_len), print_field(
-                'default', max_val_len)), file=out)
-    print(separator.replace('-', '='), file=out)
+        "| %s | %s | %s |"
+        % (
+            print_field("name", max_name_len),
+            print_field("type", max_type_len),
+            print_field("default", max_val_len),
+        ),
+        file=out,
+    )
+    print(separator.replace("-", "="), file=out)
     for i in range(len(names)):
         print(
-            '| %s | %s | %s |' %
-            (print_field(
-                names[i], max_name_len), print_field(
-                type, max_type_len), print_field(
-                default_values[i], max_val_len)), file=out)
+            "| %s | %s | %s |"
+            % (
+                print_field(names[i], max_name_len),
+                print_field(type_name, max_type_len),
+                print_field(default_values[i], max_val_len),
+            ),
+            file=out,
+        )
         print(separator, file=out)
     print(file=out)
     print(description, file=out)
 
 
-mode = ''
+mode = ""
 
 # parse out default values for settings
-f2 = open('../src/settings_pack.cpp')
+f2 = open("../src/settings_pack.cpp")
 def_map = {}
 for line in f2:
     line = line.strip()
-    if not line.startswith('SET(') \
-        and not line.startswith('SET_NOPREV(') \
-            and not line.startswith('DEPRECATED_SET('):
+    if (
+        not line.startswith("SET(")
+        and not line.startswith("SET_NOPREV(")
+        and not line.startswith("DEPRECATED_SET(")
+    ):
         continue
 
-    line = line.split('(')[1].split(',')
-    if line[1].strip()[0] == '"':
-        default = ','.join(line[1:]).strip()[1:].split('"')[0].strip()
+    parts = line.split("(")[1].split(",")
+    if parts[1].strip()[0] == '"':
+        default = ",".join(parts[1:]).strip()[1:].split('"')[0].strip()
     else:
-        default = line[1].strip()
-    def_map[line[0]] = default
-    print('%s = %s' % (line[0], default))
+        default = parts[1].strip()
+    def_map[parts[0]] = default
+    print("%s = %s" % (parts[0], default))
 
-description = ''
-names = []
+description = ""
+names: List[str] = []
 
 for line in f:
-    if 'enum string_types' in line:
-        mode = 'string'
-    if 'enum bool_types' in line:
-        mode = 'bool'
-    if 'enum int_types' in line:
-        mode = 'int'
-    if '#if TORRENT_ABI_VERSION == 1' in line:
-        mode += 'skip'
-    if '#if TORRENT_ABI_VERSION <= 2' in line:
-        mode += 'skip'
-    if '#if TORRENT_ABI_VERSION <= 3' in line:
-        mode += 'skip'
-    if '#endif' in line:
+    if "enum string_types" in line:
+        mode = "string"
+    if "enum bool_types" in line:
+        mode = "bool"
+    if "enum int_types" in line:
+        mode = "int"
+    if "#if TORRENT_ABI_VERSION == 1" in line:
+        mode += "skip"
+    if "#if TORRENT_ABI_VERSION <= 2" in line:
+        mode += "skip"
+    if "#if TORRENT_ABI_VERSION <= 3" in line:
+        mode += "skip"
+    if "#endif" in line:
         mode = mode[0:-4]
 
-    if mode == '':
+    if mode == "":
         continue
-    if mode[-4:] == 'skip':
+    if mode[-4:] == "skip":
         continue
 
     line = line.lstrip()
 
-    if line == '' and len(names) > 0:
-        if description == '':
+    if line == "" and len(names) > 0:
+        if description == "":
             for n in names:
                 print('WARNING: no description for "%s"' % n)
         else:
@@ -106,33 +126,33 @@ for line in f:
             for n in names:
                 default_values.append(def_map[n])
             render_section(names, description, mode, default_values)
-        description = ''
+        description = ""
         names = []
 
-    if line.startswith('};'):
-        mode = ''
+    if line.startswith("};"):
+        mode = ""
         continue
 
-    if line.startswith('//'):
-        if line[2] == ' ':
+    if line.startswith("//"):
+        if line[2] == " ":
             description += line[3:]
         else:
             description += line[2:]
         continue
 
     line = line.strip()
-    if line.endswith(','):
+    if line.endswith(","):
         line = line[:-1]  # strip trailing comma
-        if '=' in line:
-            line = line.split('=')[0].strip()
-        if line.endswith('_internal'):
+        if "=" in line:
+            line = line.split("=")[0].strip()
+        if line.endswith("_internal"):
             continue
 
         names.append(line)
 
-dictionary = open('hunspell/settings.dic', 'w+')
+dictionary = open("hunspell/settings.dic", "w+")
 for w in all_names:
-    dictionary.write(w + '\n')
+    dictionary.write(w + "\n")
 dictionary.close()
 out.close()
 f.close()
