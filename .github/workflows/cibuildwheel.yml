@@ -1,0 +1,193 @@
+name: cibuildwheel
+
+on:
+  release:
+    types: [released, prereleased]
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish to pypi ('true' or 'false')
+        required: true
+        default: true
+jobs:
+  build_wheels:
+    name: cibuildwheel
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        include:
+          # ubuntu-20.04 cp36
+          - os: ubuntu-20.04
+            pytag: cp36
+            arch: x86_64
+          - os: ubuntu-20.04
+            pytag: cp36
+            arch: i686
+          - os: ubuntu-20.04
+            pytag: cp36
+            arch: aarch64
+          - os: ubuntu-20.04
+            pytag: cp36
+            arch: ppc64le
+          - os: ubuntu-20.04
+            pytag: cp36
+            arch: s390x
+
+          # ubuntu-20.04 cp37
+          - os: ubuntu-20.04
+            pytag: cp37
+            arch: x86_64
+          - os: ubuntu-20.04
+            pytag: cp37
+            arch: i686
+          - os: ubuntu-20.04
+            pytag: cp37
+            arch: aarch64
+          - os: ubuntu-20.04
+            pytag: cp37
+            arch: ppc64le
+          - os: ubuntu-20.04
+            pytag: cp37
+            arch: s390x
+
+          # ubuntu-20.04 cp38
+          - os: ubuntu-20.04
+            pytag: cp38
+            arch: x86_64
+          - os: ubuntu-20.04
+            pytag: cp38
+            arch: i686
+          - os: ubuntu-20.04
+            pytag: cp38
+            arch: aarch64
+          - os: ubuntu-20.04
+            pytag: cp38
+            arch: ppc64le
+          - os: ubuntu-20.04
+            pytag: cp38
+            arch: s390x
+
+          # ubuntu-20.04 cp39
+          - os: ubuntu-20.04
+            pytag: cp39
+            arch: x86_64
+          - os: ubuntu-20.04
+            pytag: cp39
+            arch: i686
+          - os: ubuntu-20.04
+            pytag: cp39
+            arch: aarch64
+          - os: ubuntu-20.04
+            pytag: cp39
+            arch: ppc64le
+          - os: ubuntu-20.04
+            pytag: cp39
+            arch: s390x
+
+          # macos-10.15 cp36
+          - os: macos-10.15
+            pytag: cp36
+            arch: x86_64
+
+          # macos-10.15 cp37
+          - os: macos-10.15
+            pytag: cp37
+            arch: x86_64
+
+          # macos-10.15 cp38
+          - os: macos-10.15
+            pytag: cp38
+            arch: x86_64
+          # NB: boost can't build arm64 as of writing
+          # NB: setup.py doesn't know how to build universal2 as of writing
+
+          # macos-10.15 cp39
+          - os: macos-10.15
+            pytag: cp39
+            arch: x86_64
+          # NB: boost can't build arm64 as of writing
+          # NB: setup.py doesn't know how to build universal2 as of writing
+
+          # windows-2019 cp36
+          - os: windows-2019
+            pytag: cp36
+            arch: AMD64
+          - os: windows-2019
+            pytag: cp36
+            arch: x86
+
+          # windows-2019 cp37
+          - os: windows-2019
+            pytag: cp37
+            arch: AMD64
+          - os: windows-2019
+            pytag: cp37
+            arch: x86
+
+          # windows-2019 cp38
+          - os: windows-2019
+            pytag: cp38
+            arch: AMD64
+          - os: windows-2019
+            pytag: cp38
+            arch: x86
+
+          # windows-2019 cp39
+          - os: windows-2019
+            pytag: cp39
+            arch: AMD64
+          - os: windows-2019
+            pytag: cp39
+            arch: x86
+    env:
+       CIBW_BUILD_VERBOSITY: 1
+       CIBW_BUILD: ${{ matrix.pytag }}-*
+       CIBW_ARCHS: ${{ matrix.arch }}
+       BOOST_VERSION: 1.75.0
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+
+    - uses: actions/cache@v2
+      id: cache-wheel
+      with:
+        path: wheelhouse
+        key: wheel-${{ matrix.os }}-${{ matrix.pytag }}-${{ matrix.arch }}-${{ env.BOOST_VERSION }}-${{ github.sha }}
+
+    - uses: docker/setup-qemu-action@v1
+      if: steps.cache-wheel.outputs.cache-hit != 'true' && runner.os == 'Linux'
+
+    - uses: actions/setup-python@v2
+      if: steps.cache-wheel.outputs.cache-hit != 'true'
+
+    - name: build native wheels
+      if: steps.cache-wheel.outputs.cache-hit != 'true'
+      run: |
+        python -m sysconfig
+        python -m pip install cibuildwheel
+        python tools/run_cibuildwheel.py --output-dir wheelhouse
+
+    - uses: actions/upload-artifact@v2
+      with:
+        path: wheelhouse/*.whl
+        name: wheels
+
+  upload_pypi:
+    needs: [build_wheels]
+    runs-on: ubuntu-latest
+    if: needs.build_wheels.result == 'success' && (github.event_name == 'release' || github.event.inputs.publish == 'true')
+
+    steps:
+    - uses: actions/download-artifact@v2
+      with:
+        name: wheels
+        path: wheelhouse
+
+    - uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        password: ${{ secrets.PYPI_API_TOKEN }}
+        packages_dir: wheelhouse
+        skip_existing: true
