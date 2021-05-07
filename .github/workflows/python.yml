@@ -36,29 +36,26 @@ jobs:
       run: |
         sudo apt install libboost-tools-dev libboost-python-dev libboost-dev libboost-system-dev python3 python3-setuptools
 
+    - name: setup python (windows)
+      if: runner.os == 'Windows'
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.x
+
+    - name: install cihelper (windows)
+      if: runner.os == 'Windows'
+      run: |
+        python -m pip install ./cihelper
+
     - name: install boost (windows)
       if: runner.os == 'Windows'
-      shell: cmd
       run: |
-        git clone --depth=1 --recurse-submodules -j10 --branch=boost-1.72.0 https://github.com/boostorg/boost.git
-        cd boost
-        bootstrap.bat
-
-    - name: boost headers (windows)
-      if: runner.os == 'Windows'
-      shell: cmd
-      run: |
-        cd boost
-        .\b2 headers
+        cihelper_boost_install
 
     - name: build/install (windows)
       if: runner.os == 'Windows'
       shell: cmd
       run: |
-        set BOOST_ROOT=%CD%\boost
-        set BOOST_BUILD_PATH=%BOOST_ROOT%\tools\build
-        set PATH=%BOOST_ROOT%;%PATH%
-
         cd bindings\python
         python setup.py build_ext install --user --prefix=
 
