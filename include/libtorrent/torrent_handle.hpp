@@ -71,6 +71,7 @@ namespace aux {
 	using reannounce_flags_t = flags::bitfield_flag<std::uint8_t, struct reannounce_flags_tag>;
 	using queue_position_t = aux::strong_typedef<int, struct queue_position_tag>;
 	using file_progress_flags_t = flags::bitfield_flag<std::uint8_t, struct file_progress_flags_tag>;
+	using piece_flags_t = flags::bitfield_flag<std::uint8_t, struct piece_flags_tag>;
 
 	// holds the state of a block in a piece. Who we requested
 	// it from and how far along we are at downloading it.
@@ -1308,6 +1309,21 @@ namespace aux {
 		// Note that this is a blocking function, unlike torrent_handle::is_valid()
 		// which returns immediately.
 		bool in_session() const;
+
+		// TODO
+		static inline constexpr piece_flags_t alert_when_done = 0_bit;
+
+		// TODO
+		static inline constexpr piece_flags_t read_when_done = 1_bit;
+
+		piece_flags_t piece_flags(piece_index_t) const;
+		std::vector<piece_flags_t> piece_flags() const;
+		void set_piece_flags(piece_index_t, piece_flags_t flags, piece_flags_t mask) const;
+		void set_piece_flags(piece_index_t, piece_flags_t flags) const;
+		void set_piece_flags(std::vector<piece_index_t> const&, piece_flags_t flags, piece_flags_t mask) const;
+		void set_piece_flags(std::vector<piece_index_t> const&, piece_flags_t flags) const;
+		void unset_piece_flags(piece_index_t, piece_flags_t flags) const;
+		void unset_piece_flags(std::vector<piece_index_t> const&, piece_flags_t flags) const;
 
 	private:
 

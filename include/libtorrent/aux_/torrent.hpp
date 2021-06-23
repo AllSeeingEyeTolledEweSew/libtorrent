@@ -109,8 +109,6 @@ namespace libtorrent::aux {
 		time_point last_requested;
 		// by what time we want this piece
 		time_point deadline;
-		// 1 = send alert with piece data when available
-		deadline_flags_t flags;
 		// how many peers it's been requested from
 		int peers;
 		// the piece index

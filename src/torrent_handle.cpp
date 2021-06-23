@@ -873,6 +873,58 @@ namespace libtorrent {
 	bool torrent_handle::in_session() const
 	{ return !sync_call_ret<bool>(false, &aux::torrent::is_aborted); }
 
+	piece_flags_t torrent_handle::piece_flags(piece_index_t, index) const
+	{
+		return sync_call_ret<piece_flags_t>(piece_flags_t{}, &aux::torrent::piece_flags, index);
+	}
+
+	std::vector<piece_flags_t> torrent_handle::piece_flags() const
+	{
+		aux::vector<piece_flags_t, piece_index_t> ret;
+		auto* const retp = &ret;
+		sync_call(&aux::torrent::piece_flags, retp);
+		return std::move(ret);
+	}
+
+	void torrent_handle::set_piece_flags(piece_index_t index, piece_flags_t flags, piece_flags_t mask) const
+	{
+		async_call(&aux::torrent::set_piece_flags, index, flags, mask);
+	}
+
+	void torrent_handle::set_piece_flags(piece_index_t index, piece_flags_t flags) const
+	{
+		async_call(&aux::torrent::set_piece_flags, index, piece_flags::all, flags);
+	}
+
+	void torrent_handle::set_piece_flags(std::vector<piece_index_t> const& pieces, piece_flags_t flags, piece_flags_t mask) const
+	{
+		async_call(&aux::torrent::set_piece_flags
+			, static_cast<aux::vector<piece_index_t, piece_index_t> const&>(pieces)
+			, flags
+			, mask);
+	}
+
+	void torrent_handle::set_piece_flags(std::vector<piece_index_t> const& pieces, piece_flags_t flags) const
+	{
+		async_call(&aux::torrent::set_piece_flags
+			, static_cast<aux::vector<piece_index_t, piece_index_t> const&>(pieces)
+			, piece_flags_t::all
+			, flags);
+	}
+
+	void torrent_handle::unset_piece_flags(piece_index_t index, piece_flags_t flags) const
+	{
+		async_call(&aux::torrent::set_piece_flags, index, piece_flags_t{}, flags);
+	}
+
+	void torrent_handle::unset_piece_flags(std::vector<piece_index_t> const&, piece_flags_t flags) const
+	{
+		async_call(&aux::torrent::set_piece_flags
+			, static_cast<aux::vector<piece_index_t, piece_index_t> const&>(pieces)
+			, piece_flags_t{}
+			, flags);
+	}
+
 	static_assert(std::is_nothrow_move_constructible<torrent_handle>::value
 		, "should be nothrow move constructible");
 	static_assert(std::is_nothrow_move_assignable<torrent_handle>::value
