@@ -315,7 +315,7 @@ void bind_create_torrent()
         .def("set_creator", &create_torrent::set_creator)
         .def("set_hash", &set_hash)
 #if TORRENT_ABI_VERSION < 3
-        .def("set_file_hash", &set_file_hash)
+        .def("set_file_hash", depr(&set_file_hash))
 #endif
         .def("add_url_seed", &create_torrent::add_url_seed)
         .def("add_http_seed", &create_torrent::add_http_seed)
