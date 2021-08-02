@@ -24,6 +24,13 @@ namespace
         return std::make_shared<pe_settings>();
     }
 #endif
+#if TORRENT_ABI_VERSION <= 2
+    std::shared_ptr<dht_settings> dht_settings_constructor()
+    {
+        python_deprecated("dht_settings is deprecated");
+        return std::make_shared<dht_settings>();
+    }
+#endif
 };
 
 void bind_session_settings()
@@ -121,7 +128,8 @@ void bind_session_settings()
 
 #ifndef TORRENT_DISABLE_DHT
 #if TORRENT_ABI_VERSION <= 2
-    class_<dht::dht_settings>("dht_settings")
+    class_<dht::dht_settings>("dht_settings", no_init)
+        .def("__init__", make_constructor(&dht_settings_constructor))
         .def_readwrite("max_peers_reply", &dht::dht_settings::max_peers_reply)
         .def_readwrite("search_branching", &dht::dht_settings::search_branching)
         .def_readwrite("max_fail_count", &dht::dht_settings::max_fail_count)
