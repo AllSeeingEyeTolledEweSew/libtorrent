@@ -1261,6 +1261,7 @@ void bind_session()
 
     {
         scope s = class_<dummy9>("save_state_flags_t");
+        s.attr("all") = save_state_flags_t::all();
         s.attr("save_settings") = lt::session::save_settings;
         s.attr("save_dht_settings") = lt::session::save_dht_settings;
         s.attr("save_dht_state") = lt::session::save_dht_state;
