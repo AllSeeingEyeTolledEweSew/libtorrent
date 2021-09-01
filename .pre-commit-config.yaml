@@ -119,7 +119,6 @@ repos:
               bindings/python/tests/simple_client_test.py|
               bindings/python/tests/make_torrent_test.py|
               docs/filter-rst.py|
-              docs/gen_reference_doc.py|
               docs/gen_settings_doc.py|
               docs/gen_stats_doc.py|
               docs/gen_todo.py|
@@ -158,7 +157,6 @@ repos:
             bindings/python/tests/simple_client_test.py|
             bindings/python/tests/make_torrent_test.py|
             docs/gen_todo.py|
-            docs/gen_reference_doc.py|
             docs/gen_settings_doc.py|
             docs/gen_stats_doc.py|
             examples/run_benchmarks.py|

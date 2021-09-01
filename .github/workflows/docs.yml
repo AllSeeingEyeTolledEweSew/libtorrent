@@ -23,7 +23,7 @@ jobs:
       - name: install dependencies
         run: |
           sudo apt install python-docutils python-pygments python-pil gsfonts inkscape icoutils graphviz hunspell imagemagick
-          python -m pip install aafigure
+          python -m pip install aafigure typing-extensions
           ~/.local/bin/aafigure --version
 
       - name: spell-check

@@ -1,11 +1,21 @@
 #!/usr/bin/env python3
-# vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
-from __future__ import print_function
 
 import glob
 import os
 import sys
+from typing import Any
+from typing import Dict
+from typing import Iterable
+from typing import List
+from typing import Optional
+from typing import Sequence
+from typing import Set
+from typing import TextIO
+from typing import Tuple
+from typing import TypeVar
 import urllib.parse
+
+from typing_extensions import TypedDict
 
 verbose = "--verbose" in sys.argv
 dump = "--dump" in sys.argv
@@ -14,7 +24,7 @@ plain_output = "--plain-output" in sys.argv
 single_page_output = "--single-page" in sys.argv
 if plain_output:
     plain_file = open("plain_text_out.txt", "w+")
-in_code = None
+in_code: Optional[str] = None
 
 paths = [
     "include/libtorrent/*.hpp",
@@ -30,16 +40,58 @@ files = []
 for p in paths:
     files.extend(glob.glob(os.path.join("..", p)))
 
-functions = []
-classes = []
-enums = []
-constants = {}
+
+class EnumValue(TypedDict):
+    desc: str
+    name: str
+    val: str
+
+
+class Enum(TypedDict, total=False):
+    desc: str
+    file: str
+    name: str
+    values: List[EnumValue]
+
+
+class Constant(TypedDict, total=False):
+    desc: str
+    file: str
+    type: str
+    name: str
+
+
+class Function(TypedDict, total=False):
+    desc: str
+    file: str
+    signatures: Set[str]
+    names: Set[str]
+
+
+class Field(TypedDict, total=False):
+    signatures: List[str]
+    names: List[str]
+    desc: str
+
+
+class Class(TypedDict, total=False):
+    desc: str
+    file: str
+    enums: List[Enum]
+    fields: List[Field]
+    type: str
+    name: str
+    decl: str
+    fun: List[Function]
+
+
+functions: List[Function] = []
+classes: List[Class] = []
+enums: List[Enum] = []
+constants: Dict[str, List[Constant]] = {}
 
 # maps filename to overview description
-overviews = {}
-
-# maps names -> URL
-symbols = {}
+overviews: Dict[str, str] = {}
 
 # some files that need pre-processing to turn symbols into
 # links into the reference documentation
@@ -64,15 +116,16 @@ symbols = {
     "metadata-from-peers_": "manual-ref.html#metadata-from-peers",
     "magnet-links_": "manual-ref.html#magnet-links",
     "ssl-torrents_": "manual-ref.html#ssl-torrents",
-    "dynamic-loading-of-torrent-files_": "manual-ref.html#dynamic-loading-of-torrent-files",
+    "dynamic-loading-of-torrent-files_": "manual-ref.html"
+    "#dynamic-loading-of-torrent-files",
     "session-statistics_": "manual-ref.html#session-statistics",
     "peer-classes_": "manual-ref.html#peer-classes",
 }
 
 # parse out names of settings, and add them to the symbols list, to get cross
 # references working
-with open("../src/settings_pack.cpp") as f:
-    for line in f:
+with open("../src/settings_pack.cpp") as fp:
+    for line in fp:
         line = line.strip()
         if not line.startswith("SET("):
             continue
@@ -157,7 +210,7 @@ category_fun_mapping = {
 }
 
 
-def categorize_symbol(name, filename):
+def categorize_symbol(name: str, filename: str) -> str:
     f = os.path.split(filename)[1]
 
     if (
@@ -180,7 +233,7 @@ def categorize_symbol(name, filename):
     return "Core"
 
 
-def suppress_warning(filename, name):
+def suppress_warning(filename: str, name: Optional[str]) -> bool:
     f = os.path.split(filename)[1]
     if f != "alert_types.hpp":
         return False
@@ -191,13 +244,16 @@ def suppress_warning(filename, name):
     # return False
 
 
-def first_item(itr):
+_T = TypeVar("_T")
+
+
+def first_item(itr: Iterable[_T]) -> Optional[_T]:
     for i in itr:
         return i
     return None
 
 
-def is_visible(desc):
+def is_visible(desc: str) -> bool:
     if desc.strip().startswith("hidden"):
         return False
     if internal:
@@ -207,7 +263,7 @@ def is_visible(desc):
     return True
 
 
-def highlight_signature(s):
+def highlight_signature(s: str) -> str:
     name = s.split("(", 1)
     name2 = name[0].split(" ")
     if len(name2[-1]) == 0:
@@ -237,7 +293,7 @@ def highlight_signature(s):
     return "(".join(name)
 
 
-def highlight_name(s):
+def highlight_name(s: str) -> str:
     if "=" in s:
         splitter = " = "
     elif "{" in s:
@@ -255,7 +311,7 @@ def highlight_name(s):
     return splitter.join(name)
 
 
-def html_sanitize(s):
+def html_sanitize(s: str) -> str:
     ret = ""
     for i in s:
         if i == "<":
@@ -269,14 +325,14 @@ def html_sanitize(s):
     return ret
 
 
-def looks_like_namespace(line):
+def looks_like_namespace(line: str) -> bool:
     line = line.strip()
     if line.startswith("namespace"):
         return True
     return False
 
 
-def looks_like_blank(line):
+def looks_like_blank(line: str) -> bool:
     line = line.split("//")[0]
     line = line.replace("{", "")
     line = line.replace("}", "")
@@ -287,7 +343,7 @@ def looks_like_blank(line):
     return len(line) == 0
 
 
-def looks_like_variable(line):
+def looks_like_variable(line: str) -> bool:
     line = line.split("//")[0]
     line = line.strip()
     if " " not in line and "\t" not in line:
@@ -311,7 +367,7 @@ def looks_like_variable(line):
     return False
 
 
-def looks_like_constant(line):
+def looks_like_constant(line: str) -> bool:
     line = line.strip()
     if line.startswith("inline"):
         line = line.split("inline")[1]
@@ -322,7 +378,7 @@ def looks_like_constant(line):
     return looks_like_variable(line)
 
 
-def looks_like_forward_decl(line):
+def looks_like_forward_decl(line: str) -> bool:
     line = line.split("//")[0]
     line = line.strip()
     if not line.endswith(";"):
@@ -340,7 +396,7 @@ def looks_like_forward_decl(line):
     return False
 
 
-def looks_like_function(line):
+def looks_like_function(line: str) -> bool:
     line = line.split("//")[0]
     if line.startswith("friend class "):
         return False
@@ -355,7 +411,9 @@ def looks_like_function(line):
     return "(" in line
 
 
-def parse_function(lno, lines, filename):
+def parse_function(
+    lno: int, lines: Sequence[str], filename: str
+) -> Tuple[Optional[Function], int]:
 
     start_paren = 0
     end_paren = 0
@@ -407,7 +465,7 @@ def parse_function(lno, lines, filename):
 
                 lno = consume_block(lno - 1, lines)
                 signature += ";"
-            ret = [
+            ret: Tuple[Function, int] = (
                 {
                     "file": filename[11:],
                     "signatures": set([signature]),
@@ -416,19 +474,19 @@ def parse_function(lno, lines, filename):
                     ),
                 },
                 lno,
-            ]
+            )
             if first_item(ret[0]["names"]) == "()":
-                return [None, lno]
+                return (None, lno)
             return ret
     if len(signature) > 0:
         print(
             "\x1b[31mFAILED TO PARSE FUNCTION\x1b[0m %s\nline: %d\nfile: %s"
             % (signature, lno, filename)
         )
-    return [None, lno]
+    return (None, lno)
 
 
-def add_desc(line):
+def add_desc(line: str) -> None:
     # plain output prints just descriptions and filters out c++ code.
     # it's used to run spell checker over
     if plain_output:
@@ -449,14 +507,16 @@ def add_desc(line):
                 plain_file.write(s + "\n")
 
 
-def parse_class(lno, lines, filename):
+def parse_class(
+    lno: int, lines: Sequence[str], filename: str
+) -> Tuple[Optional[Class], int]:
     start_brace = 0
     end_brace = 0
 
     name = ""
-    funs = []
-    fields = []
-    enums = []
+    funs: List[Function] = []
+    fields: List[Field] = []
+    enums: List[Enum] = []
     state = "public"
     context = ""
     class_type = "struct"
@@ -544,7 +604,7 @@ def parse_class(lno, lines, filename):
             state = "public"
 
         if start_brace > 0 and start_brace == end_brace:
-            return [
+            return (
                 {
                     "file": filename[11:],
                     "enums": enums,
@@ -555,7 +615,7 @@ def parse_class(lno, lines, filename):
                     "fun": funs,
                 },
                 lno,
-            ]
+            )
 
         if state != "public" and not internal:
             if verbose:
@@ -584,16 +644,11 @@ def parse_class(lno, lines, filename):
                         sys.exit(1)
                     current_fun["desc"] = context
                     add_desc(context)
-                    if context == "" and not suppress_warning(
-                        filename, first_item(current_fun["names"])
-                    ):
+                    first_name = next(iter(current_fun["names"]))
+                    if context == "" and not suppress_warning(filename, first_name):
                         print(
-                            'WARNING: member function "%s" is not documented: \x1b[34m%s:%d\x1b[0m'
-                            % (
-                                name + "::" + first_item(current_fun["names"]),
-                                filename,
-                                lno,
-                            )
+                            f'WARNING: member function "{name}::{first_name}" is '
+                            f"not documented: \x1b[34m{filename}:{lno}\x1b[0m"
                         )
                     funs.append(current_fun)
                 context = ""
@@ -603,9 +658,11 @@ def parse_class(lno, lines, filename):
         if looks_like_variable(line):
             if "constexpr static" in line:
                 print(
-                    'ERROR: found "constexpr static", use "static constexpr" instead for consistency!\n%s:%d\n%s'
-                    % (filename, lno, line)
+                    'ERROR: found "constexpr static", use "static constexpr" instead '
+                    "for consistency!"
                 )
+                print(f"{filename}:{lno}")
+                print(line)
                 sys.exit(1)
             if verbose:
                 print("var     %s" % line)
@@ -682,10 +739,12 @@ def parse_class(lno, lines, filename):
             "\x1b[31mFAILED TO PARSE CLASS\x1b[0m %s\nfile: %s:%d"
             % (name, filename, lno)
         )
-    return [None, lno]
+    return (None, lno)
 
 
-def parse_constant(lno, lines, filename):
+def parse_constant(
+    lno: int, lines: Sequence[str], filename: str
+) -> Tuple[Constant, int]:
     line = lines[lno].strip()
     if verbose:
         print("const   %s" % line)
@@ -695,10 +754,12 @@ def parse_constant(lno, lines, filename):
     if "{" in line and "}" in line:
         line = line.split("{")[0]
     t, name = line.strip().rsplit(" ", 1)
-    return [{"file": filename[11:], "type": t, "name": name}, lno + 1]
+    return ({"file": filename[11:], "type": t, "name": name}, lno + 1)
 
 
-def parse_enum(lno, lines, filename):
+def parse_enum(
+    lno: int, lines: Sequence[str], filename: str
+) -> Tuple[Optional[Enum], int]:
     start_brace = 0
     end_brace = 0
     global anon_index
@@ -715,11 +776,11 @@ def parse_enum(lno, lines, filename):
         if not internal:
             print("WARNING: anonymous enum at: \x1b[34m%s:%d\x1b[0m" % (filename, lno))
             lno = consume_block(lno - 1, lines)
-            return [None, lno]
+            return (None, lno)
         name = "anonymous_enum_%d" % anon_index
         anon_index += 1
 
-    values = []
+    values: List[EnumValue] = []
     context = ""
     if "{" not in line:
         if verbose:
@@ -782,17 +843,17 @@ def parse_enum(lno, lines, filename):
                 print("??    %s" % lines[lno - 1])
 
         if start_brace > 0 and start_brace == end_brace:
-            return [{"file": filename[11:], "name": name, "values": values}, lno]
+            return ({"file": filename[11:], "name": name, "values": values}, lno)
 
     if len(name) > 0:
         print(
             "\x1b[31mFAILED TO PARSE ENUM\x1b[0m %s\nline: %d\nfile: %s"
             % (name, lno, filename)
         )
-    return [None, lno]
+    return (None, lno)
 
 
-def consume_block(lno, lines):
+def consume_block(lno: int, lines: Sequence[str]) -> int:
     start_brace = 0
     end_brace = 0
 
@@ -810,7 +871,7 @@ def consume_block(lno, lines):
     return lno
 
 
-def consume_comment(lno, lines):
+def consume_comment(lno: int, lines: Sequence[str]) -> int:
     while lno < len(lines):
         line = lines[lno].strip()
         if verbose:
@@ -822,7 +883,7 @@ def consume_comment(lno, lines):
     return lno
 
 
-def trim_define(line):
+def trim_define(line: str) -> str:
     return (
         line.replace("#ifndef", "")
         .replace("#ifdef", "")
@@ -842,7 +903,7 @@ def trim_define(line):
     )
 
 
-def consume_ifdef(lno, lines, warn_on_ifdefs=False):
+def consume_ifdef(lno: int, lines: Sequence[str], warn_on_ifdefs: bool = False) -> int:
     line = lines[lno].strip()
     lno += 1
 
@@ -857,12 +918,12 @@ def consume_ifdef(lno, lines, warn_on_ifdefs=False):
             lno += 1
             line += lines[lno].strip()
             if verbose:
-                print("prep  %s" % lines[lno].trim())
+                print("prep  %s" % lines[lno].strip())
         define = trim_define(line)
         if "TORRENT_" in define and "TORRENT_ABI_VERSION" not in define:
             print(
-                '\x1b[31mWARNING: possible ABI breakage in public struct! "%s" \x1b[34m %s:%d\x1b[0m'
-                % (define, filename, lno)
+                f'\x1b[31mWARNING: possible ABI breakage in public struct! "{define}" '
+                f"\x1b[34m {filename}:{lno}\x1b[0m"
             )
         elif define != "":
             print(
@@ -1013,9 +1074,11 @@ for filename in files:
         if looks_like_constant(line):
             if "constexpr static" in line:
                 print(
-                    'ERROR: found "constexpr static", use "static constexpr" instead for consistency!\n%s:%d\n%s'
-                    % (filename, lno, line)
+                    'ERROR: found "constexpr static", use "static constexpr" '
+                    "instead for consistency"
                 )
+                print(f"{filename}:{lno}")
+                print(line)
                 sys.exit(1)
             current_constant, lno = parse_constant(lno - 1, lines, filename)
             if current_constant is not None and is_visible(context):
@@ -1058,8 +1121,8 @@ for filename in files:
                         add_desc(context)
                         if context == "":
                             print(
-                                'WARNING: class "%s" is not documented: \x1b[34m%s:%d\x1b[0m'
-                                % (current_class["name"], filename, lno)
+                                f'WARNING: class "{current_class["name"]}" is not '
+                                f"documented: \x1b[34m{filename}:{lno}\x1b[0m"
                             )
                         classes.append(current_class)
                 context = ""
@@ -1082,9 +1145,10 @@ for filename in files:
                         current_fun["desc"] = context
                         add_desc(context)
                         if context == "":
+                            name = next(iter(current_fun["names"]))
                             print(
-                                'WARNING: function "%s" is not documented: \x1b[34m%s:%d\x1b[0m'
-                                % (first_item(current_fun["names"]), filename, lno)
+                                f'WARNING: function "{name}" is not documented: '
+                                f"\x1b[34m{filename}:{lno}\x1b[0m"
                             )
                         functions.append(current_fun)
                     context = ""
@@ -1144,7 +1208,16 @@ for filename in files:
 # ====================================================================
 
 
-def new_category(cat):
+class Category(TypedDict, total=False):
+    overview: str
+    classes: List[Class]
+    functions: List[Function]
+    enums: List[Enum]
+    filename: str
+    constants: Dict[str, List[Constant]]
+
+
+def new_category(cat: str) -> Category:
     return {
         "classes": [],
         "functions": [],
@@ -1159,108 +1232,116 @@ if dump:
     if verbose:
         print("\n===============================\n")
 
-    for c in classes:
-        print("\x1b[4m%s\x1b[0m %s\n{" % (c["type"], c["name"]))
-        for f in c["fun"]:
-            for s in f["signatures"]:
-                print("   %s" % s.replace("\n", "\n   "))
+    for cls in classes:
+        print("\x1b[4m%s\x1b[0m %s\n{" % (cls["type"], cls["name"]))
+        for func in cls["fun"]:
+            for sig in func["signatures"]:
+                print("   %s" % sig.replace("\n", "\n   "))
 
-        if len(c["fun"]) > 0 and len(c["fields"]) > 0:
+        if len(cls["fun"]) > 0 and len(cls["fields"]) > 0:
             print("")
 
-        for f in c["fields"]:
-            for s in f["signatures"]:
-                print("   %s" % s)
+        for field in cls["fields"]:
+            for sig in field["signatures"]:
+                print("   %s" % sig)
 
-        if len(c["fields"]) > 0 and len(c["enums"]) > 0:
+        if len(cls["fields"]) > 0 and len(cls["enums"]) > 0:
             print("")
 
-        for e in c["enums"]:
-            print("   \x1b[4menum\x1b[0m %s\n   {" % e["name"])
-            for v in e["values"]:
-                print("      %s" % v["name"])
+        for enum in cls["enums"]:
+            print("   \x1b[4menum\x1b[0m %s\n   {" % enum["name"])
+            for value in enum["values"]:
+                print("      %s" % value["name"])
             print("   };")
         print("};\n")
 
-    for f in functions:
-        print("%s" % f["signature"])
+    for func in functions:
+        for sig in func["signatures"]:
+            print("%s" % sig)
 
-    for e in enums:
-        print("\x1b[4menum\x1b[0m %s\n{" % e["name"])
-        for v in e["values"]:
-            print("   %s" % v["name"])
+    for enum in enums:
+        print("\x1b[4menum\x1b[0m %s\n{" % enum["name"])
+        for value in enum["values"]:
+            print("   %s" % value["name"])
         print("};")
 
-    for t, c in constants:
-        print("\x1b[4mconstant\x1b[0m %s %s\n" % (e["type"], e["name"]))
+    for type_constants in constants.values():
+        for const in type_constants:
+            print("\x1b[4mconstant\x1b[0m %s %s\n" % (const["type"], const["name"]))
 
-categories = {}
+categories: Dict[str, Category] = {}
 
-for c in classes:
-    cat = categorize_symbol(c["name"], c["file"])
+for cls in classes:
+    cat = categorize_symbol(cls["name"], cls["file"])
     if cat not in categories:
         categories[cat] = new_category(cat)
 
-    if c["file"] in overviews:
-        categories[cat]["overview"] = overviews[c["file"]]
+    if cls["file"] in overviews:
+        categories[cat]["overview"] = overviews[cls["file"]]
 
     filename = categories[cat]["filename"].replace(".rst", ".html") + "#"
-    categories[cat]["classes"].append(c)
-    symbols[c["name"]] = filename + c["name"]
-    for f in c["fun"]:
-        for n in f["names"]:
-            symbols[n] = filename + n
-            symbols[c["name"] + "::" + n] = filename + n
+    categories[cat]["classes"].append(cls)
+    symbols[cls["name"]] = filename + cls["name"]
+    for func in cls["fun"]:
+        for name in func["names"]:
+            symbols[name] = filename + name
+            symbols[cls["name"] + "::" + name] = filename + name
 
-    for f in c["fields"]:
-        for n in f["names"]:
-            symbols[c["name"] + "::" + n] = filename + n
+    for field in cls["fields"]:
+        for name in field["names"]:
+            symbols[cls["name"] + "::" + name] = filename + name
 
-    for e in c["enums"]:
-        symbols[e["name"]] = filename + e["name"]
-        symbols[c["name"] + "::" + e["name"]] = filename + e["name"]
-        for v in e["values"]:
+    for enum in cls["enums"]:
+        symbols[enum["name"]] = filename + enum["name"]
+        symbols[cls["name"] + "::" + enum["name"]] = filename + enum["name"]
+        for value in enum["values"]:
             # symbols[v['name']] = filename + v['name']
-            symbols[e["name"] + "::" + v["name"]] = filename + v["name"]
-            symbols[c["name"] + "::" + v["name"]] = filename + v["name"]
+            symbols[enum["name"] + "::" + value["name"]] = filename + value["name"]
+            symbols[cls["name"] + "::" + value["name"]] = filename + value["name"]
 
-for f in functions:
-    cat = categorize_symbol(first_item(f["names"]), f["file"])
+for func in functions:
+    cat = categorize_symbol(next(iter(func["names"])), func["file"])
     if cat not in categories:
         categories[cat] = new_category(cat)
 
-    if f["file"] in overviews:
-        categories[cat]["overview"] = overviews[f["file"]]
+    if func["file"] in overviews:
+        categories[cat]["overview"] = overviews[func["file"]]
 
-    for n in f["names"]:
-        symbols[n] = categories[cat]["filename"].replace(".rst", ".html") + "#" + n
-    categories[cat]["functions"].append(f)
+    for name in func["names"]:
+        symbols[name] = (
+            categories[cat]["filename"].replace(".rst", ".html") + "#" + name
+        )
+    categories[cat]["functions"].append(func)
 
-for e in enums:
-    cat = categorize_symbol(e["name"], e["file"])
+for enum in enums:
+    cat = categorize_symbol(enum["name"], enum["file"])
     if cat not in categories:
         categories[cat] = new_category(cat)
-    categories[cat]["enums"].append(e)
+    categories[cat]["enums"].append(enum)
     filename = categories[cat]["filename"].replace(".rst", ".html") + "#"
-    symbols[e["name"]] = filename + e["name"]
-    for v in e["values"]:
-        symbols[e["name"] + "::" + v["name"]] = filename + v["name"]
+    symbols[enum["name"]] = filename + enum["name"]
+    for value in enum["values"]:
+        symbols[enum["name"] + "::" + value["name"]] = filename + value["name"]
 
-for t, c in constants.items():
-    for const in c:
-        cat = categorize_symbol(t, const["file"])
+for ctype, type_constants in constants.items():
+    for const in type_constants:
+        cat = categorize_symbol(ctype, const["file"])
         if cat not in categories:
             categories[cat] = new_category(cat)
-        if t not in categories[cat]["constants"]:
-            categories[cat]["constants"][t] = [const]
+        if ctype not in categories[cat]["constants"]:
+            categories[cat]["constants"][ctype] = [const]
         else:
-            categories[cat]["constants"][t].append(const)
+            categories[cat]["constants"][ctype].append(const)
         filename = categories[cat]["filename"].replace(".rst", ".html") + "#"
-        symbols[t + "::" + const["name"]] = filename + t + "::" + const["name"]
-    symbols[t] = filename + t
+        symbols[ctype + "::" + const["name"]] = filename + ctype + "::" + const["name"]
+    symbols[ctype] = filename + ctype
 
 
-def print_declared_in(out, o):
+class HasFile(TypedDict, total=False):
+    file: str
+
+
+def print_declared_in(out: TextIO, o: HasFile) -> None:
     out.write('Declared in "%s"\n\n' % print_link(o["file"], "include/%s" % o["file"]))
     print(dump_link_targets(), file=out)
 
@@ -1268,9 +1349,9 @@ def print_declared_in(out, o):
 # returns RST marked up string
 
 
-def linkify_symbols(string):
+def linkify_symbols(string: str) -> str:
     lines = string.split("\n")
-    ret = []
+    ret: List[str] = []
     in_literal = False
     lno = 0
     return_string = ""
@@ -1360,16 +1441,16 @@ def linkify_symbols(string):
     return return_string
 
 
-link_targets = []
+link_targets: List[str] = []
 
 
-def print_link(name, target):
+def print_link(name: str, target: str) -> str:
     global link_targets
     link_targets.append(target)
     return "`%s`__" % name
 
 
-def dump_link_targets(indent=""):
+def dump_link_targets(indent: str = "") -> str:
     global link_targets
     ret = "\n"
     for link in link_targets:
@@ -1378,100 +1459,77 @@ def dump_link_targets(indent=""):
     return ret
 
 
-def heading(string, c, indent=""):
+def heading(string: str, c: str, indent: str = "") -> str:
     string = string.strip()
     return "\n" + indent + string + "\n" + indent + (c * len(string)) + "\n"
 
 
-def render_enums(out, enums, print_declared_reference, header_level):
-    for e in enums:
+def render_enums(
+    out: TextIO, enums: List[Enum], print_declared_reference: Any, header_level: str
+) -> None:
+    for enum in enums:
         print(".. raw:: html\n", file=out)
-        print('\t<a name="%s"></a>' % e["name"], file=out)
+        print('\t<a name="%s"></a>' % enum["name"], file=out)
         print("", file=out)
-        dump_report_issue("enum " + e["name"], out)
-        print(heading("enum %s" % e["name"], header_level), file=out)
+        dump_report_issue("enum " + enum["name"], out)
+        print(heading("enum %s" % enum["name"], header_level), file=out)
 
-        print_declared_in(out, e)
+        print_declared_in(out, enum)
 
-        width = [len("name"), len("value"), len("description")]
+        w0, w1, w2 = len("name"), len("value"), len("description")
 
-        for i in range(len(e["values"])):
-            e["values"][i]["desc"] = linkify_symbols(e["values"][i]["desc"])
+        for value in enum["values"]:
+            value["desc"] = linkify_symbols(value["desc"])
 
-        for v in e["values"]:
-            width[0] = max(width[0], len(v["name"]))
-            width[1] = max(width[1], len(v["val"]))
-            for d in v["desc"].split("\n"):
-                width[2] = max(width[2], len(d))
+        for value in enum["values"]:
+            w0 = max(w0, len(value["name"]))
+            w1 = max(w1, len(value["val"]))
+            for line in value["desc"].split("\n"):
+                w2 = max(w2, len(line))
 
-        print(
-            "+-"
-            + ("-" * width[0])
-            + "-+-"
-            + ("-" * width[1])
-            + "-+-"
-            + ("-" * width[2])
-            + "-+",
-            file=out,
-        )
-        print(
-            "| "
-            + "name".ljust(width[0])
-            + " | "
-            + "value".ljust(width[1])
-            + " | "
-            + "description".ljust(width[2])
-            + " |",
-            file=out,
-        )
-        print(
-            "+="
-            + ("=" * width[0])
-            + "=+="
-            + ("=" * width[1])
-            + "=+="
-            + ("=" * width[2])
-            + "=+",
-            file=out,
-        )
-        for v in e["values"]:
-            d = v["desc"].split("\n")
-            if len(d) == 0:
-                d = [""]
-            print(
-                "| "
-                + v["name"].ljust(width[0])
-                + " | "
-                + v["val"].ljust(width[1])
-                + " | "
-                + d[0].ljust(width[2])
-                + " |",
-                file=out,
+        out.write("+-")
+        out.write("-+-".join("-" * w for w in (w0, w1, w2)))
+        out.write("-+\n")
+
+        out.write("| ")
+        out.write(
+            " | ".join(
+                h.ljust(w)
+                for h, w in zip(("name", "value", "description"), (w0, w1, w2))
             )
-            for s in d[1:]:
-                print(
-                    "| "
-                    + (" " * width[0])
-                    + " | "
-                    + (" " * width[1])
-                    + " | "
-                    + s.ljust(width[2])
-                    + " |",
-                    file=out,
+        )
+        out.write(" |\n")
+
+        out.write("+=")
+        out.write("=+=".join("=" * w for w in (w0, w1, w2)))
+        out.write("=+\n")
+        for value in enum["values"]:
+            lines = value["desc"].split("\n")
+            out.write("| ")
+            out.write(
+                " | ".join(
+                    v.ljust(w)
+                    for v, w in zip(
+                        (value["name"], value["val"], lines[0]), (w0, w1, w2)
+                    )
                 )
-            print(
-                "+-"
-                + ("-" * width[0])
-                + "-+-"
-                + ("-" * width[1])
-                + "-+-"
-                + ("-" * width[2])
-                + "-+",
-                file=out,
             )
-        print("", file=out)
+            out.write(" |\n")
+            for line in lines[1:]:
+                out.write("| ")
+                out.write(
+                    " | ".join(
+                        v.ljust(w) for v, w in zip((" ", " ", line), (w0, w1, w2))
+                    )
+                )
+                out.write(" |\n")
+            out.write("+-")
+            out.write("-+-".join("-" * w for w in (w0, w1, w2)))
+            out.write("-+\n")
+        out.write("\n")
 
-        print(dump_link_targets(), file=out)
+        out.write(dump_link_targets())
+        out.write("\n")
 
 
 sections = {
@@ -1501,12 +1559,14 @@ sections = {
 }
 
 
-def print_toc(out, categories, s):
+def print_toc(out: TextIO, categories: Dict[str, Category], section: int) -> None:
 
     main_toc = False
 
     for cat in categories:
-        if (s != 2 and cat not in sections) or (cat in sections and sections[cat] != s):
+        if (section != 2 and cat not in sections) or (
+            cat in sections and sections[cat] != section
+        ):
             continue
 
         if not main_toc:
@@ -1518,15 +1578,15 @@ def print_toc(out, categories, s):
         if "overview" in categories[cat]:
             print("\t| overview__", file=out)
 
-        for c in categories[cat]["classes"]:
-            print("\t| " + print_link(c["name"], symbols[c["name"]]), file=out)
-        for f in categories[cat]["functions"]:
-            for n in f["names"]:
-                print("\t| " + print_link(n, symbols[n]), file=out)
-        for e in categories[cat]["enums"]:
-            print("\t| " + print_link(e["name"], symbols[e["name"]]), file=out)
-        for t, c in categories[cat]["constants"].items():
-            print("\t| " + print_link(t, symbols[t]), file=out)
+        for cls in categories[cat]["classes"]:
+            print("\t| " + print_link(cls["name"], symbols[cls["name"]]), file=out)
+        for func in categories[cat]["functions"]:
+            for name in func["names"]:
+                print("\t| " + print_link(name, symbols[name]), file=out)
+        for enum in categories[cat]["enums"]:
+            print("\t| " + print_link(enum["name"], symbols[enum["name"]]), file=out)
+        for const_type in categories[cat]["constants"]:
+            print("\t| " + print_link(const_type, symbols[const_type]), file=out)
         print("", file=out)
 
         if "overview" in categories[cat]:
@@ -1538,23 +1598,21 @@ def print_toc(out, categories, s):
         print(dump_link_targets("\t"), file=out)
 
 
-def dump_report_issue(h, out):
+def dump_report_issue(head: str, out: TextIO) -> None:
+    body = urllib.parse.quote_plus(
+        f"Documentation under heading {head} could be improved"
+    )
+    head = urllib.parse.quote_plus(head)
     print(
-        (
-            '.. raw:: html\n\n\t<span class="report-issue">[<a '
-            + 'href="http://github.com/arvidn/libtorrent/issues/new?title=docs:{0}&labels='
-            + 'documentation&body={1}">report issue</a>]</span>\n\n'
-        ).format(
-            urllib.parse.quote_plus(h),
-            urllib.parse.quote_plus(
-                'Documentation under heading "' + h + '" could be improved'
-            ),
-        ),
+        '.. raw:: html\n\n\t<span class="report-issue">[<a '
+        'href="http://github.com/arvidn/libtorrent/issues/new?'
+        f'title=docs:{head}&labels=documentation&body={body}">'
+        "report issue</a>]</span>\n\n",
         file=out,
     )
 
 
-def render(out, category):
+def render(out: TextIO, category: Category) -> None:
 
     classes = category["classes"]
     functions = category["functions"]
@@ -1564,131 +1622,131 @@ def render(out, category):
     if "overview" in category:
         out.write("%s\n" % linkify_symbols(category["overview"]))
 
-    for c in classes:
+    for cls in classes:
 
         print(".. raw:: html\n", file=out)
-        print('\t<a name="%s"></a>' % c["name"], file=out)
+        print('\t<a name="%s"></a>' % cls["name"], file=out)
         print("", file=out)
 
-        dump_report_issue("class " + c["name"], out)
-        out.write("%s\n" % heading(c["name"], "-"))
-        print_declared_in(out, c)
-        c["desc"] = linkify_symbols(c["desc"])
-        out.write("%s\n" % c["desc"])
+        dump_report_issue("class " + cls["name"], out)
+        out.write("%s\n" % heading(cls["name"], "-"))
+        print_declared_in(out, cls)
+        cls["desc"] = linkify_symbols(cls["desc"])
+        out.write("%s\n" % cls["desc"])
         print(dump_link_targets(), file=out)
 
         print("\n.. parsed-literal::\n\t", file=out)
 
-        block = "\n%s\n{\n" % c["decl"]
-        for f in c["fun"]:
-            for s in f["signatures"]:
-                block += "   %s\n" % highlight_signature(s.replace("\n", "\n   "))
+        block = "\n%s\n{\n" % cls["decl"]
+        for func in cls["fun"]:
+            for sig in func["signatures"]:
+                block += "   %s\n" % highlight_signature(sig.replace("\n", "\n   "))
 
-        if len(c["fun"]) > 0 and len(c["enums"]) > 0:
+        if len(cls["fun"]) > 0 and len(cls["enums"]) > 0:
             block += "\n"
 
         first = True
-        for e in c["enums"]:
+        for enum in cls["enums"]:
             if not first:
                 block += "\n"
             first = False
-            block += "   enum %s\n   {\n" % e["name"]
-            for v in e["values"]:
-                block += "      %s,\n" % v["name"]
+            block += "   enum %s\n   {\n" % enum["name"]
+            for value in enum["values"]:
+                block += "      %s,\n" % value["name"]
             block += "   };\n"
 
-        if len(c["fun"]) + len(c["enums"]) > 0 and len(c["fields"]):
+        if (cls["fun"] or cls["enums"]) and cls["fields"]:
             block += "\n"
 
-        for f in c["fields"]:
-            for s in f["signatures"]:
-                block += "   %s\n" % highlight_name(s)
+        for field in cls["fields"]:
+            for sig in field["signatures"]:
+                block += "   %s\n" % highlight_name(sig)
 
         block += "};"
 
         print(block.replace("\n", "\n\t") + "\n", file=out)
 
-        for f in c["fun"]:
-            if f["desc"] == "":
+        for func in cls["fun"]:
+            if not func["desc"]:
                 continue
             print(".. raw:: html\n", file=out)
-            for n in f["names"]:
-                print('\t<a name="%s"></a>' % n, file=out)
+            for name in func["names"]:
+                print('\t<a name="%s"></a>' % name, file=out)
             print("", file=out)
-            h = " ".join(f["names"])
-            dump_report_issue("%s::[%s]" % (c["name"], h), out)
-            print(heading(h, "."), file=out)
+            head = " ".join(func["names"])
+            dump_report_issue("%s::[%s]" % (cls["name"], head), out)
+            print(heading(head, "."), file=out)
 
             block = ".. parsed-literal::\n\n"
 
-            for s in f["signatures"]:
-                block += highlight_signature(s.replace("\n", "\n   ")) + "\n"
+            for sig in func["signatures"]:
+                block += highlight_signature(sig.replace("\n", "\n   ")) + "\n"
             print("%s\n" % block.replace("\n", "\n\t"), file=out)
-            f["desc"] = linkify_symbols(f["desc"])
-            print("%s" % f["desc"], file=out)
+            func["desc"] = linkify_symbols(func["desc"])
+            print("%s" % func["desc"], file=out)
 
             print(dump_link_targets(), file=out)
 
-        render_enums(out, c["enums"], False, ".")
+        render_enums(out, cls["enums"], False, ".")
 
-        for f in c["fields"]:
-            if f["desc"] == "":
+        for field in cls["fields"]:
+            if not field["desc"]:
                 continue
 
             print(".. raw:: html\n", file=out)
-            for n in f["names"]:
-                print('\t<a name="%s"></a>' % n, file=out)
+            for name in field["names"]:
+                print('\t<a name="%s"></a>' % name, file=out)
             print("", file=out)
-            h = " ".join(f["names"])
-            dump_report_issue("%s::[%s]" % (c["name"], h), out)
-            print(h, file=out)
-            f["desc"] = linkify_symbols(f["desc"])
-            print("\t%s" % f["desc"].replace("\n", "\n\t"), file=out)
+            head = " ".join(field["names"])
+            dump_report_issue("%s::[%s]" % (cls["name"], head), out)
+            print(head, file=out)
+            field["desc"] = linkify_symbols(field["desc"])
+            print("\t%s" % field["desc"].replace("\n", "\n\t"), file=out)
 
             print(dump_link_targets(), file=out)
 
-    for f in functions:
+    for func in functions:
         print(".. raw:: html\n", file=out)
-        for n in f["names"]:
-            print('\t<a name="%s"></a>' % n, file=out)
+        for name in func["names"]:
+            print('\t<a name="%s"></a>' % name, file=out)
         print("", file=out)
-        h = " ".join(f["names"])
-        dump_report_issue(h, out)
-        print(heading(h, "-"), file=out)
-        print_declared_in(out, f)
+        head = " ".join(func["names"])
+        dump_report_issue(head, out)
+        print(heading(head, "-"), file=out)
+        print_declared_in(out, func)
 
         block = ".. parsed-literal::\n\n"
-        for s in f["signatures"]:
-            block += highlight_signature(s) + "\n"
+        for sig in func["signatures"]:
+            block += highlight_signature(sig) + "\n"
 
         print("%s\n" % block.replace("\n", "\n\t"), file=out)
-        print(linkify_symbols(f["desc"]), file=out)
+        print(linkify_symbols(func["desc"]), file=out)
 
         print(dump_link_targets(), file=out)
 
     render_enums(out, enums, True, "-")
 
-    for t, c in constants.items():
+    for ctype, type_constants in constants.items():
         print(".. raw:: html\n", file=out)
-        print('\t<a name="%s"></a>\n' % t, file=out)
-        dump_report_issue(t, out)
-        print(heading(t, "-"), file=out)
-        print_declared_in(out, c[0])
+        print('\t<a name="%s"></a>\n' % ctype, file=out)
+        dump_report_issue(ctype, out)
+        print(heading(ctype, "-"), file=out)
+        print_declared_in(out, type_constants[0])
 
-        for v in c:
+        for const in type_constants:
             print(".. raw:: html\n", file=out)
-            print('\t<a name="%s::%s"></a>\n' % (t, v["name"]), file=out)
-            print(v["name"], file=out)
-            v["desc"] = linkify_symbols(v["desc"])
-            print("\t%s" % v["desc"].replace("\n", "\n\t"), file=out)
+            print('\t<a name="%s::%s"></a>\n' % (ctype, const["name"]), file=out)
+            print(const["name"], file=out)
+            const["desc"] = linkify_symbols(const["desc"])
+            print("\t%s" % const["desc"].replace("\n", "\n\t"), file=out)
             print(dump_link_targets("\t"), file=out)
 
         print("", file=out)
 
     print(dump_link_targets(), file=out)
 
-    for i in static_links:
-        print(i, file=out)
+    for link in static_links:
+        print(link, file=out)
 
 
 if single_page_output:
@@ -1756,14 +1814,14 @@ __ reference.html
     #       for s in symbols:
     #           print(s)
 
-    for i, o in list(preprocess_rst.items()):
-        f = open(i, "r")
-        out = open(o, "w+")
-        print("processing %s -> %s" % (i, o))
-        link = linkify_symbols(f.read())
+    for in_path, out_path in list(preprocess_rst.items()):
+        in_fp = open(in_path, "r")
+        out_fp = open(out_path, "w+")
+        print("processing %s -> %s" % (in_path, out_path))
+        link = linkify_symbols(in_fp.read())
         print(link, end=" ", file=out)
 
         print(dump_link_targets(), file=out)
 
-        out.close()
-        f.close()
+        out_fp.close()
+        in_fp.close()
