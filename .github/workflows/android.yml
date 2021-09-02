@@ -22,14 +22,9 @@ jobs:
         with:
            submodules: true
 
-      - name: install boost
-        run: |
-          git clone --depth=1 --branch=boost-1.75.0 https://github.com/boostorg/boost.git
-          cd boost
-          git submodule update --init --depth=1
-          ./bootstrap.sh
-          ./b2 headers
-          cd ..
+      - uses: AllSeeingEyeTolledEweSew/setup-boost@v1
+        with:
+           version: 1.75.0
 
       - name: install ndk
         run: |
@@ -55,11 +50,9 @@ jobs:
         run: |
           export ANDROID_TOOLCHAIN=${PWD}/android-toolchain
           export PATH=${ANDROID_TOOLCHAIN}/arm-linux-androideabi/bin:${PATH}
-          export BOOST_ROOT=${PWD}/boost
           export OPENSSL_ROOT=${PWD}/openssl
-          echo "boost-build ${BOOST_ROOT}/tools/build/src ;" > boost-build.jam
           echo "using clang-linux : arm : ${ANDROID_TOOLCHAIN}/bin/arm-linux-androideabi-clang++
           <cxxflags>-fPIC
           <cxxflags>-march=armv7-a
           <cxxflags>-mfpu=neon ;" >>~/user-config.jam;
-          ${BOOST_ROOT}/b2 warnings-as-errors=on cxxstd=14 toolset=clang-linux-arm target-os=android link=static crypto=openssl openssl-include=${OPENSSL_ROOT}/include openssl-lib=${OPENSSL_ROOT}/lib
+          b2 warnings-as-errors=on cxxstd=14 toolset=clang-linux-arm target-os=android link=static crypto=openssl openssl-include=${OPENSSL_ROOT}/include openssl-lib=${OPENSSL_ROOT}/lib

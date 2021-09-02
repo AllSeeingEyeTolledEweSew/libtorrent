@@ -27,9 +27,12 @@ jobs:
         run: |
           sudo apt update
 
-      - name: install boost
+      - uses: AllSeeingEyeTolledEweSew/setup-boost@v1
+        with:
+          version: 1.76.0
+
+      - name: using gcc
         run: |
-          sudo apt install libboost-tools-dev libboost-dev libboost-system-dev
           echo "using gcc ;" >>~/user-config.jam
 
       - name: install gcrypt
@@ -73,9 +76,12 @@ jobs:
         run: |
           sudo apt install clang-9
 
-      - name: install boost
+      - uses: AllSeeingEyeTolledEweSew/setup-boost@v1
+        with:
+          version: 1.76.0
+
+      - name: using clang
         run: |
-          sudo apt install libboost-tools-dev libboost-dev libboost-system-dev
           echo "using clang : 9 : clang++-9 ;" >>~/user-config.jam
 
       - name: build fuzzers
@@ -100,9 +106,12 @@ jobs:
         run: |
           sudo apt update
 
-      - name: install boost
+      - uses: AllSeeingEyeTolledEweSew/setup-boost@v1
+        with:
+          version: 1.76.0
+
+      - name: using gcc
         run: |
-          sudo apt install libboost-tools-dev libboost-dev libboost-system-dev
           echo "using gcc ;" >>~/user-config.jam
 
       - name: compile header files individually
@@ -129,9 +138,12 @@ jobs:
       - name: install clang-tidy
         run: sudo apt install clang-tidy libc++-dev
 
-      - name: install boost
+      - uses: AllSeeingEyeTolledEweSew/setup-boost@v1
+        with:
+          version: 1.76.0
+
+      - name: using clang_tidy
         run: |
-          sudo apt install libboost-tools-dev libboost-dev
           echo "using clang_tidy : : clang-tidy \"-checks=-clang-analyzer-core.*,-clang-analyzer-unix.*\" : <cxxflags>-std=c++14 <cxxflags>-I/usr/local/clang-7.0.0/include/c++/v1 <cxxflags>-stdlib=libc++ <linkflags>-stdlib=libc++ ;" >> ~/user-config.jam;
 
       - name: analyze
@@ -175,9 +187,12 @@ jobs:
         run: |
           sudo apt install clang-10
 
-      - name: install boost
+      - uses: AllSeeingEyeTolledEweSew/setup-boost@v1
+        with:
+          version: 1.76.0
+
+      - name: using gcc and clang
         run: |
-          sudo apt install libboost-tools-dev libboost-dev libboost-system-dev
           echo "using gcc ;" >>~/user-config.jam
           echo "using clang : 10 : clang++-10 ;" >>~/user-config.jam
 
@@ -211,9 +226,12 @@ jobs:
         run: |
           sudo apt update
 
-      - name: install boost
+      - uses: AllSeeingEyeTolledEweSew/setup-boost@v1
+        with:
+          version: 1.76.0
+
+      - name: using gcc
         run: |
-          sudo apt install libboost-tools-dev libboost-dev libboost-system-dev
           echo "using gcc ;" >>~/user-config.jam
 
       - name: build and run simulations
@@ -243,9 +261,15 @@ jobs:
 
       - name: install dependencies
         run: |
-          sudo apt install libboost-tools-dev libboost-python-dev libboost-dev libboost-system-dev
           sudo apt install python-docutils python-pygments python-pil gsfonts inkscape icoutils graphviz hunspell imagemagick python3-setuptools
           python3 -m pip install aafigure
+
+      - uses: AllSeeingEyeTolledEweSew/setup-boost@v1
+        with:
+          version: 1.76.0
+
+      - name: using gcc
+        run: |
           echo "using gcc ;" >>~/user-config.jam
 
       - name: build tarball

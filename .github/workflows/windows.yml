@@ -34,21 +34,12 @@ jobs:
         shell: pwsh
         run: choco install openssl
 
-      - name: install boost
-        run: |
-          git clone --depth=1 --recurse-submodules -j10 --branch=boost-1.72.0 https://github.com/boostorg/boost.git
-          cd boost
-          bootstrap.bat
-
-      - name: boost headers
-        run: |
-          cd boost
-          .\b2 headers
+      - uses: AllSeeingEyeTolledEweSew/setup-boost@v1
+        with:
+          version: 1.76.0
 
       - name: tests (deterministic)
         run: |
-          set BOOST_ROOT=%CD%\boost
-          set PATH=%BOOST_ROOT%;%PATH%
           set PYTHON_INTERPRETER=python
           cd test
           b2 -l400 warnings=all warnings-as-errors=on ${{ matrix.config }} deterministic-tests
@@ -56,8 +47,6 @@ jobs:
 
       - name: tests (flaky)
         run: |
-          set BOOST_ROOT=%CD%\boost
-          set PATH=%BOOST_ROOT%;%PATH%
           set PYTHON_INTERPRETER=python
           cd test
           set c=3
@@ -79,16 +68,9 @@ jobs:
         with:
            submodules: true
 
-      - name: install boost
-        run: |
-          git clone --depth=1 --recurse-submodules -j10 --branch=boost-1.72.0 https://github.com/boostorg/boost.git
-          cd boost
-          bootstrap.bat
-
-      - name: boost headers
-        run: |
-          cd boost
-          .\b2 headers
+      - uses: AllSeeingEyeTolledEweSew/setup-boost@v1
+        with:
+          version: 1.76.0
 
   # debug iterators are turned off here because msvc has issues with noexcept
   # specifiers when debug iterators are enabled. Specifically, constructors that
@@ -98,15 +80,11 @@ jobs:
   # certain unexpected terminations (through exceptions)
       - name: build sims
         run: |
-          set BOOST_ROOT=%CD%\boost
-          set PATH=%BOOST_ROOT%;%PATH%
           cd simulation
           b2 --hash address-model=64 link=static debug-iterators=off invariant-checks=on crypto=built-in define=BOOST_ASIO_DISABLE_IOCP asserts=on testing.execute=off
 
       - name: run sims
         run: |
-          set BOOST_ROOT=%CD%\boost
-          set PATH=%BOOST_ROOT%;%PATH%
           cd simulation
           b2 --hash -l500 address-model=64 link=static debug-iterators=off invariant-checks=on crypto=built-in define=BOOST_ASIO_DISABLE_IOCP asserts=on
 
@@ -128,36 +106,22 @@ jobs:
         with:
            submodules: true
 
-      - name: install boost
-        run: |
-          git clone --depth=1 --recurse-submodules -j10 --branch=boost-1.72.0 https://github.com/boostorg/boost.git
-          cd boost
-          bootstrap.bat
-
-      - name: boost headers
-        run: |
-          cd boost
-          .\b2 headers
+      - uses: AllSeeingEyeTolledEweSew/setup-boost@v1
+        with:
+          version: 1.76.0
 
       - name: build library
         run: |
-          set BOOST_ROOT=%CD%\boost
-          set PATH=%BOOST_ROOT%;%PATH%
           b2 ${{ matrix.config }} cxxstd=14 warnings=all warnings-as-errors=on
 
       - name: build examples
         if: ${{ ! contains(matrix.config, 'windows-api=store') }}
         run: |
-          set BOOST_ROOT=%CD%\boost
-          set PATH=%BOOST_ROOT%;%PATH%
           cd examples
           b2 ${{ matrix.config }} warnings=all warnings-as-errors=on
 
       - name: build tools
         if: ${{ ! contains(matrix.config, 'windows-api=store') }}
         run: |
-          set BOOST_ROOT=%CD%\boost
-          set PATH=%BOOST_ROOT%;%PATH%
           cd tools
           b2 ${{ matrix.config }} warnings=all warnings-as-errors=on
-
