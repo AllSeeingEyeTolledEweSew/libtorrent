@@ -351,6 +351,8 @@ class LibtorrentBuildExt(build_ext_lib.build_ext):
         if os.name == "nt":
             self._maybe_add_arg("--abbreviate-paths")
 
+        self._maybe_add_arg("crypto=openssl")
+
         if distutils.debug.DEBUG:
             self._maybe_add_arg("--debug-configuration")
             self._maybe_add_arg("--debug-building")

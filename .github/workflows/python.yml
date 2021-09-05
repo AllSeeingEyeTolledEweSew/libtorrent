@@ -81,7 +81,7 @@ jobs:
     - name: dependencies (linux)
       if: runner.os == 'Linux'
       run: |
-        sudo apt install libboost-tools-dev libboost-python-dev libboost-dev libboost-system-dev
+        sudo apt install libboost-tools-dev libboost-python-dev libboost-dev libboost-system-dev libssl-dev
 
     - name: install boost (windows)
       if: runner.os == 'Windows'
@@ -97,6 +97,12 @@ jobs:
       run: |
         cd boost
         .\b2 headers
+
+    - name: install openssl (windows)
+      if: runner.os == 'Windows'
+      shell: cmd
+      run: |
+        choco install openssl
 
     - name: build/test with tox (windows)
       if: runner.os == 'Windows'
