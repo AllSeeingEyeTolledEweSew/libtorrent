@@ -20,7 +20,7 @@ jobs:
          matrix:
            include:
              - config: address-model=32
-             - config: address-model=64 crypto=openssl "openssl-lib=C:\Program Files\OpenSSL-Win64\lib" "openssl-include=C:\Program Files\OpenSSL-Win64\include"
+             - config: address-model=64 crypto=openssl
              - config: release
 
       steps:
@@ -51,7 +51,7 @@ jobs:
           set PATH=%BOOST_ROOT%;%PATH%
           set PYTHON_INTERPRETER=python
           cd test
-          b2 -l400 warnings=all warnings-as-errors=on ${{ matrix.config }} deterministic-tests
+          b2 --debug-configuration --debug-building --debug-generators -l400 warnings=all warnings-as-errors=on ${{ matrix.config }} deterministic-tests
 
 
       - name: tests (flaky)

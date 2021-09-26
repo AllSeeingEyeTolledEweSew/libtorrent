@@ -11,6 +11,7 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-20.04, macos-latest, windows-2019 ]
 
@@ -50,6 +51,12 @@ jobs:
       run: |
         cd boost
         .\b2 headers
+
+    - name: install openssl (windows)
+      if: runner.os == 'Windows'
+      shell: cmd
+      run: |
+        choco install openssl
 
     - name: build/install (windows)
       if: runner.os == 'Windows'
