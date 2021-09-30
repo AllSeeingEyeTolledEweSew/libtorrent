@@ -7,9 +7,8 @@ from typing import Optional
 from typing import Type
 from typing import TypeVar
 
-from typing_extensions import TypedDict
-
 import libtorrent as lt
+from typing_extensions import TypedDict
 
 
 class _FParams(TypedDict, total=False):

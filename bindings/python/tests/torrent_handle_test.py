@@ -10,9 +10,8 @@ from typing import Mapping
 from typing import Optional
 import unittest
 
-from typing_extensions import TypedDict
-
 import libtorrent as lt
+from typing_extensions import TypedDict
 
 from . import lib
 from . import tdummy
