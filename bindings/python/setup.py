@@ -464,4 +464,7 @@ setuptools.setup(
         "build_ext": LibtorrentBuildExt,
     },
     distclass=B2Distribution,
+    install_requires=[
+        "!python-libtorrent",  # avoid conflicting with the old name
+    ],
 )
