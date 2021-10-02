@@ -3,7 +3,29 @@ name: Python bindings
 on:
    push:
       branches: [ RC_1_2 RC_2_0 master ]
+      paths:
+      - src/**
+      - include/**
+      - deps/**
+      - Jamfile
+      - Jamroot.jam
+      - bindings/python/**
+      - setup.py
+      - setup.cfg
+      - tox.ini
+      - pyproject.toml
    pull_request:
+      paths:
+      - src/**
+      - include/**
+      - deps/**
+      - Jamfile
+      - Jamroot.jam
+      - bindings/python/**
+      - setup.py
+      - setup.cfg
+      - tox.ini
+      - pyproject.toml
 
 jobs:
   test:
@@ -11,18 +33,45 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     strategy:
+      # on linux and mac, the boost libraries are fixed to a python version.
+      # since we install boost from repos on those systems, we must use the
+      # matching python versions
       matrix:
-        os: [ubuntu-20.04, ubuntu-18.04, macos-latest, windows-latest ]
+        include:
+          - os: ubuntu-20.04
+            python-version: 3.8
+          - os: ubuntu-18.04
+            python-version: 3.6
+          - os: macos-latest
+            python-version: 3.9
+          - os: windows-2019
+            python-version: 3.6
 
     steps:
     - uses: actions/checkout@v2
       with:
         submodules: recursive
 
+    # Note:
+    #  - on mac and linux images, 'python' is python2 and 'python3' is
+    #    python3
+    #  - on windows, neither 'python' nor 'python3' is in PATH by default
+    #  - setup-python sets up PATH so 'python' and 'python3' point to the
+    #    requested version on mac and linux, but on windows it only sets up
+    #    'python'.
+    - uses: actions/setup-python@v2
+      with:
+         python-version: ${{ matrix.python-version }}
+
+    - name: install tox
+      run: |
+        python3 -m pip install --upgrade pip
+        python3 -m pip install --upgrade tox
+
     - name: dependencies (MacOS)
       if: runner.os == 'macOS'
       run: |
-        brew install boost-build boost boost-python3 python@3.9 openssl
+        brew install boost-build boost boost-python3 openssl
         echo "using darwin ;" >>~/user-config.jam
 
     - name: update package lists (linux)
@@ -39,10 +88,11 @@ jobs:
         ccache_options: |
           max_size=500M
 
+
     - name: dependencies (linux)
       if: runner.os == 'Linux'
       run: |
-        sudo apt install libboost-tools-dev libboost-python-dev libboost-dev libboost-system-dev python3 python3-setuptools libssl-dev
+        sudo apt install libboost-tools-dev libboost-python-dev libboost-dev libboost-system-dev
 
     - name: install boost (windows)
       if: runner.os == 'Windows'
@@ -65,35 +115,15 @@ jobs:
       run: |
         choco install openssl
 
-    - name: build/install (windows)
+    - name: build/test with tox (windows)
       if: runner.os == 'Windows'
       shell: cmd
       run: |
         set BOOST_ROOT=%CD%\boost
-        set BOOST_BUILD_PATH=%BOOST_ROOT%\tools\build
         set PATH=%BOOST_ROOT%;%PATH%
+        tox -e py
 
-        cd bindings\python
-        python setup.py build_ext install --user --prefix=
-
-    - name: tests (windows)
-      if: runner.os == 'Windows'
-      shell: cmd
-      run: |
-        cd bindings\python
-        python test.py
-
-    - name: build/install
+    - name: build/test with tox
       if: runner.os != 'Windows'
       run: |
-        cd bindings/python
-        # Homebrew's python "framework" sets a prefix via distutils config.
-        # --prefix conflicts with --user, so null out prefix so we have one
-        # command that works everywhere
-        python3 setup.py build_ext install --user --prefix=
-
-    - name: tests
-      if: runner.os != 'Windows'
-      run: |
-        cd bindings/python
-        python3 test.py
+        tox -e py
