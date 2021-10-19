@@ -452,7 +452,12 @@ class LibtorrentBuildExt(BuildExtBase):
 
 setuptools.setup(
     name="libtorrent",
-    version="1.2.14",
+    use_scm_version={
+        "root": "../..",
+        "relative_to": __file__,
+        "parentdir_prefix_version": "libtorrent-rasterbar-",
+    },
+    setup_requires=["setuptools_scm"],
     author="Arvid Norberg",
     author_email="arvid@libtorrent.org",
     description="Python bindings for libtorrent-rasterbar",

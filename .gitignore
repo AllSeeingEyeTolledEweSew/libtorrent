@@ -66,6 +66,7 @@ libtorrent_logs*
 *.pyc
 dist
 *.egg-info
+*.eggs
 
 # python binary
 bindings/python/compile_cmd
