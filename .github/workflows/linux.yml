@@ -15,7 +15,7 @@ jobs:
       # TODO: matrix across python version and os
       runs-on: ubuntu-latest
       steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
            submodules: recursive
       - uses: actions/setup-python@v2
@@ -34,7 +34,7 @@ jobs:
 
       steps:
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
            submodules: recursive
 
@@ -81,7 +81,7 @@ jobs:
 
       steps:
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
            submodules: recursive
 
@@ -120,7 +120,7 @@ jobs:
 
       steps:
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
            submodules: recursive
 
@@ -153,7 +153,7 @@ jobs:
 
       steps:
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
            submodules: recursive
 
@@ -194,7 +194,7 @@ jobs:
 
       steps:
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
            submodules: recursive
 
@@ -237,7 +237,7 @@ jobs:
 
       steps:
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
            submodules: recursive
 
@@ -274,7 +274,7 @@ jobs:
 
       steps:
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
            submodules: recursive
 
