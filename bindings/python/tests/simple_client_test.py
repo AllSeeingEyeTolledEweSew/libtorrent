@@ -59,7 +59,6 @@ class TestSimpleClient(unittest.TestCase):
         self.server.server_close()
         self.tempdir.cleanup()
 
-    @unittest.skip("pending backport")
     def test_download_from_web_seed(self) -> None:
         proc = subprocess.run(
             [sys.executable, str(self.script_path), str(self.torrent_path)],

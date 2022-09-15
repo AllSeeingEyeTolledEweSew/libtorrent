@@ -4,7 +4,6 @@ import libtorrent as lt
 
 
 class GenerateFingerprintTest(unittest.TestCase):
-    @unittest.skip("pending backport")
     def test_generate(self) -> None:
         # full version
         self.assertEqual(
@@ -53,7 +52,6 @@ class GenerateFingerprintTest(unittest.TestCase):
 
 
 class FingerprintTest(unittest.TestCase):
-    @unittest.skip("pending backport")
     def test_fingerprint(self) -> None:
         with self.assertWarns(DeprecationWarning):
             fprint = lt.fingerprint("AB", 1, 2, 3, 4)

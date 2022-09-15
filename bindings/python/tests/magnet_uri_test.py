@@ -20,13 +20,11 @@ class ParseMagnetTest(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             lt.parse_magnet_uri("magnet:?")
 
-    @unittest.skip("pending backport")
     def test_parse_dict_deprecated(self) -> None:
         uri = f"magnet:?xt=urn:btih:{self.info_hash_sha1}"
         with self.assertWarns(DeprecationWarning):
             lt.parse_magnet_uri_dict(uri)
 
-    @unittest.skip("pending backport")
     def test_parse_dict_sha1(self) -> None:
         uri = (
             f"magnet:?xt=urn:btih:{self.info_hash_sha1}&"
@@ -114,7 +112,6 @@ class ParseMagnetTest(unittest.TestCase):
             self.assertEqual(handle.file_priorities(), [4, 4, 4, 0, 4])
             # Can't test peers or dht
 
-    @unittest.skip("pending backport")
     def test_parse_dict_sha256(self) -> None:
         uri = (
             f"magnet:?xt=urn:btmh:1220{self.info_hash_sha256}&"
@@ -206,7 +203,6 @@ class ParseMagnetTest(unittest.TestCase):
             self.assertEqual(handle.file_priorities(), [4, 4, 4, 0, 4])
             # Can't test peers or dht
 
-    @unittest.skip("pending backport")
     def test_parse_dict_error(self) -> None:
         with self.assertWarns(DeprecationWarning):
             with self.assertRaises(RuntimeError):
