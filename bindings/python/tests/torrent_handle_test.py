@@ -414,7 +414,6 @@ class AddPieceTest(unittest.TestCase):
 
         self.wait_until_finished()
 
-    @unittest.skip("pending backport")
     def test_str(self) -> None:
         for i, data in enumerate(self.dummy.pieces):
             with self.assertWarns(DeprecationWarning):
@@ -676,7 +675,6 @@ class ForceRecheckTest(TorrentHandleTest):
 
 
 class RenameFileTest(TorrentHandleTest):
-    @unittest.skip("pending backport")
     def test_rename_file(self) -> None:
         path = os.path.join("dir", "file.txt")
         self.handle.rename_file(0, path)
@@ -696,7 +694,6 @@ class RenameFileTest(TorrentHandleTest):
             if torrent_file.files().file_path(0) == "file2.txt":
                 break
 
-    @unittest.skip("pending backport")
     def test_bytes_deprecated(self) -> None:
         with self.assertWarns(DeprecationWarning):
             self.handle.rename_file(0, b"file.txt")  # type: ignore

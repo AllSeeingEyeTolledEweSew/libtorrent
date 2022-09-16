@@ -115,7 +115,6 @@ class EnumTest(unittest.TestCase):
 
 
 class ProxySettingsTest(unittest.TestCase):
-    @unittest.skip("pending backport")
     def test_proxy_settings(self) -> None:
         with self.assertWarns(DeprecationWarning):
             ps = lt.proxy_type_t.proxy_settings()
@@ -145,7 +144,6 @@ class ProxySettingsTest(unittest.TestCase):
 
 
 class DhtSettingsTest(unittest.TestCase):
-    @unittest.skip("pending backport")
     def test_dht_settings(self) -> None:
         ds = lt.dht_settings()
 
@@ -210,7 +208,6 @@ class DhtSettingsTest(unittest.TestCase):
 
 
 class PeSettingsTest(unittest.TestCase):
-    @unittest.skip("pending backport")
     def test_pe_settings(self) -> None:
         with self.assertWarns(DeprecationWarning):
             pe = lt.pe_settings()

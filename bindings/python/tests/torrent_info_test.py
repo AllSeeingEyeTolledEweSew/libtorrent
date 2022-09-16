@@ -10,7 +10,6 @@ from . import tdummy
 
 
 class FileEntryTest(unittest.TestCase):
-    @unittest.skip("pending backport")
     def test_attributes(self) -> None:
         with self.assertWarns(DeprecationWarning):
             fe = lt.file_entry()
@@ -91,7 +90,6 @@ class ConstructorTest(unittest.TestCase):
         ti = lt.torrent_info(entry)
         self.assertEqual(ti.name(), "test.txt")
 
-    @unittest.skip("pending backport")
     def test_dict_with_str_keys(self) -> None:
         with self.assertWarns(DeprecationWarning):
             ti = lt.torrent_info(
@@ -227,12 +225,10 @@ class FieldTest(unittest.TestCase):
         self.ti.set_web_seeds(web_seeds)
         self.assertEqual(self.ti.web_seeds(), web_seeds)
 
-    @unittest.skip("pending backport")
     def test_add_url_seed(self) -> None:
         self.ti.add_url_seed("http://example1.com")
         self.ti.add_url_seed("http://example2.com", "password", [("header", "value")])
 
-    @unittest.skip("pending backport")
     def test_add_http_seed(self) -> None:
         self.ti.add_http_seed("http://example1.com")
         self.ti.add_http_seed("http://example2.com", "password", [("header", "value")])
@@ -329,7 +325,6 @@ class FieldTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             generate(b"\xff").collections()
 
-    @unittest.skip("pending backport")
     def test_hash_for_piece_invalid(self) -> None:
         ti = lt.torrent_info(
             {

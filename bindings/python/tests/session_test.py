@@ -14,7 +14,6 @@ from . import tdummy
 
 
 class SessionStatusTest(unittest.TestCase):
-    @unittest.skip("pending backport")
     def test_fields(self) -> None:
         with self.assertWarns(DeprecationWarning):
             stat = lt.session_status()
@@ -467,7 +466,6 @@ class EnumsTest(unittest.TestCase):
         self.assertIsInstance(lt.protocol_type.udp, int)
         self.assertIsInstance(lt.protocol_type.tcp, int)
 
-    @unittest.skip("pending backport")
     def test_save_state_flags_t(self) -> None:
         self.assertIsInstance(lt.save_state_flags_t.all, int)
         self.assertIsInstance(lt.save_state_flags_t.save_settings, int)
@@ -531,7 +529,6 @@ class EnumsTest(unittest.TestCase):
         self.assertIsInstance(lt.session.delete_files, int)
         self.assertIsInstance(lt.session.delete_partfile, int)
 
-    @unittest.skip("pending backport")
     def test_announce_flags_t(self) -> None:
         self.assertIsInstance(lt.announce_flags_t.seed, int)
         self.assertIsInstance(lt.announce_flags_t.implied_port, int)
@@ -612,7 +609,6 @@ class ConstructorTest(unittest.TestCase):
         session = lt.session(lt.min_memory_usage())
         session.apply_settings(lib.get_isolated_settings())
 
-    @unittest.skip("pending backport")
     def test_fingerprint(self) -> None:
         with self.assertWarns(DeprecationWarning):
             fingerprint = lt.fingerprint("AB", 1, 2, 3, 4)
@@ -662,7 +658,6 @@ class DhtTest(unittest.TestCase):
     def setUp(self) -> None:
         self.session = lt.session(lib.get_isolated_settings())
 
-    @unittest.skip("pending backport")
     def test_functions(self) -> None:
         self.assertFalse(self.session.is_dht_running())
 
@@ -699,7 +694,6 @@ class DhtTest(unittest.TestCase):
         dht_settings = self.session.get_dht_settings()
         self.session.set_dht_settings(dht_settings)
 
-    @unittest.skip("pending backport")
     def test_bad_args(self) -> None:
         with self.assertRaises(ValueError):
             self.session.dht_get_mutable_item(b"short", b"salt")
@@ -877,7 +871,6 @@ class AddTorrentTest(unittest.TestCase):
     def tearDown(self) -> None:
         lib.cleanup_with_windows_fix(self.dir, timeout=5)
 
-    @unittest.skip("pending backport")
     def test_old_style_with_wrong_args(self) -> None:
         with self.assertRaises(TypeError):
             self.session.add_torrent(  # type: ignore
@@ -926,7 +919,6 @@ class AddTorrentTest(unittest.TestCase):
         self.assertIsInstance(handle, lt.torrent_handle)
         self.assertTrue(handle.is_valid())
 
-    @unittest.skip("pending backport")
     def test_dict_deprecated(self) -> None:
         with self.assertWarns(DeprecationWarning):
             self.session.add_torrent({"ti": self.torrent.torrent_info()})
@@ -982,7 +974,6 @@ class AddTorrentTest(unittest.TestCase):
         self.assertEqual(torrent_file.files().file_path(0), "renamed.txt")
         self.assertEqual(handle.get_file_priorities(), [2])
 
-    @unittest.skip("pending backport")
     def test_dict_no_torrent_info_old(self) -> None:
         self.do_test_dict({"info_hash": b"a" * 20, "save_path": self.dir.name})
 
@@ -992,7 +983,6 @@ class AddTorrentTest(unittest.TestCase):
         atp.save_path = self.dir.name
         self.session.add_torrent(atp)
 
-    @unittest.skip("pending backport")
     def test_dict_name(self) -> None:
         # This can only be tested *without* torrent info
         handle = self.do_test_dict(
@@ -1001,12 +991,10 @@ class AddTorrentTest(unittest.TestCase):
 
         self.assertEqual(handle.status().name, "test-name")
 
-    @unittest.skip("pending backport")
     def test_dict_no_torrent_info_sha1(self) -> None:
         handle = self.do_test_dict({"info_hash": b"a" * 20, "save_path": self.dir.name})
         self.assertEqual(handle.info_hash().to_bytes(), b"a" * 20)
 
-    @unittest.skip("pending backport")
     def test_dict_errors(self) -> None:
         with self.assertWarns(DeprecationWarning):
             with self.assertRaises(KeyError):
@@ -1112,7 +1100,6 @@ class PortsTest(unittest.TestCase):
     def setUp(self) -> None:
         self.session = lt.session(lib.get_isolated_settings())
 
-    @unittest.skip("pending backport")
     def test_ports(self) -> None:
         # NB: this typically is a no-op with our isolated settings, so we
         # may not test the case where it actually works
