@@ -16,6 +16,7 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-20.04, ubuntu-18.04, macos-latest, windows-latest ]
 
@@ -29,7 +30,7 @@ jobs:
       run: |
         brew update
         brew install boost-build boost boost-python3 python@3.10 openssl@1.1
-        export PATH=$(brew --prefix)/opt/python@3.10/bin:$PATH
+        echo $(brew --prefix)/opt/python@3.10/bin >> ${GITHUB_PATH}
 
     - name: update package lists (linux)
       if: runner.os == 'Linux'
@@ -75,7 +76,7 @@ jobs:
         max_attempts: 3
         command: choco install openssl --limitoutput
 
-    - name: build/install (windows)
+    - name: test with tox (windows)
       if: runner.os == 'Windows'
       shell: cmd
       run: |
@@ -83,39 +84,13 @@ jobs:
         set BOOST_BUILD_PATH=%BOOST_ROOT%\tools\build
         set PATH=%BOOST_ROOT%;%PATH%
 
-        cd bindings\python
-        python setup.py build_ext install --user --prefix=
+        python -m pip install --upgrade pip
+        python -m pip install tox
+        python -m tox -e py
 
-    - name: tests (windows)
-      if: runner.os == 'Windows'
-      shell: cmd
+    - name:  test with tox
+      if: runner.os != 'Windows'
       run: |
-        cd bindings\python
-        python test.py
-
-    - name: build/install (Linux)
-      if: runner.os == 'Linux'
-      run: |
-        cd bindings/python
-        python3 setup.py build_ext install --user --prefix=
-
-    - name: build/install (MacOS)
-      if: runner.os == 'macOS'
-      run: |
-        # Install to Homebrew's python site-packages. no need for --user and --prefix
-        cd bindings/python
-        export PATH=$(brew --prefix)/opt/python@3.10/bin:$PATH
-        python3 setup.py build_ext install --install-lib $(brew --prefix)/lib/python3.10/site-packages
-
-    - name: tests (Linux)
-      if: runner.os == 'Linux'
-      run: |
-        cd bindings/python
-        python3 test.py
-
-    - name: tests (MacOS)
-      if: runner.os == 'macOS'
-      run: |
-        cd bindings/python
-        export PATH=$(brew --prefix)/opt/python@3.10/bin:$PATH
-        python3 test.py
+        python3 -m pip install --upgrade pip
+        python3 -m pip install tox
+        python3 -m tox -e py
