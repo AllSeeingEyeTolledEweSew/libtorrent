@@ -112,7 +112,6 @@ class ParseMagnetTest(unittest.TestCase):
             self.assertEqual(handle.file_priorities(), [4, 4, 4, 0, 4])
             # Can't test peers or dht
 
-    @unittest.skip("pending backport")
     def test_parse_dict_sha256(self) -> None:
         uri = (
             f"magnet:?xt=urn:btmh:1220{self.info_hash_sha256}&"

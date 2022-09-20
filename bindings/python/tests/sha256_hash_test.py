@@ -11,18 +11,15 @@ class Sha256HashTest(unittest.TestCase):
         sha256 = lt.sha256_hash(data)
         self.assertEqual(sha256.to_bytes(), data)
 
-    @unittest.skip("pending backport")
     def test_init_short_buffer(self) -> None:
         with self.assertRaises(ValueError):
             lt.sha256_hash(b"a" * 31)
 
-    @unittest.skip("pending backport")
     def test_init_long_buffer_deprecated(self) -> None:
         with self.assertWarns(DeprecationWarning):
             sha256 = lt.sha256_hash(b"a" * 33)
         self.assertEqual(sha256, lt.sha256_hash(b"a" * 32))
 
-    @unittest.skip("pending backport")
     def test_init_str_deprecated(self) -> None:
         with self.assertWarns(DeprecationWarning):
             sha256 = lt.sha256_hash("a" * 32)  # type: ignore

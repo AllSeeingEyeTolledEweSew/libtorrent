@@ -54,7 +54,6 @@ class ReadWriteSessionParamsTest(unittest.TestCase):
         )
         self.assertEqual(set(bdecoded.keys()), {b"settings"})
 
-    @unittest.skip("pending backport")
     def test_write_empty(self) -> None:
         bdecoded = lt.write_session_params(lt.session_params(), flags=0)
         self.assertIsInstance(bdecoded, dict)
@@ -1214,7 +1213,6 @@ class AddTorrentTest(unittest.TestCase):
         )
         self.assertEqual(handle.info_hashes().v1.to_bytes(), b"a" * 20)
 
-    @unittest.skip("pending backport")
     def test_dict_no_torrent_info_sha256(self) -> None:
         handle = self.do_test_dict(
             {"info_hashes": b"a" * 32, "save_path": self.dir.name}
@@ -1648,7 +1646,6 @@ class SessionStateTest(unittest.TestCase):
         self.settings = lib.get_isolated_settings()
         self.session = lt.session(self.settings)
 
-    @unittest.skip("pending backport")
     def test_session_state(self) -> None:
         # By default, everything should be included
         params = self.session.session_state()
