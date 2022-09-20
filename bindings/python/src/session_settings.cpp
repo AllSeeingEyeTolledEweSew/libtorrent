@@ -9,6 +9,23 @@
 using namespace boost::python;
 using namespace lt;
 
+namespace
+{
+#if TORRENT_ABI_VERSION == 1
+    std::shared_ptr<proxy_settings> proxy_settings_constructor()
+    {
+        python_deprecated("proxy_settings is deprecated");
+        return std::make_shared<proxy_settings>();
+    }
+
+    std::shared_ptr<pe_settings> pe_settings_constructor()
+    {
+        python_deprecated("pe_settings is deprecated");
+        return std::make_shared<pe_settings>();
+    }
+#endif
+};
+
 void bind_session_settings()
 {
     enum_<settings_pack::choking_algorithm_t>("choking_algorithm_t")
@@ -89,7 +106,8 @@ void bind_session_settings()
 #if TORRENT_ABI_VERSION == 1
     scope().attr("proxy_type") = s;
 
-    class_<proxy_settings>("proxy_settings")
+    class_<proxy_settings>("proxy_settings", no_init)
+        .def("__init__", make_constructor(&proxy_settings_constructor))
         .def_readwrite("hostname", &proxy_settings::hostname)
         .def_readwrite("port", &proxy_settings::port)
         .def_readwrite("password", &proxy_settings::password)
@@ -126,7 +144,8 @@ void bind_session_settings()
 #endif
 
 #if TORRENT_ABI_VERSION == 1
-    class_<pe_settings>("pe_settings")
+    class_<pe_settings>("pe_settings", no_init)
+        .def("__init__", make_constructor(&pe_settings_constructor))
         .def_readwrite("out_enc_policy", &pe_settings::out_enc_policy)
         .def_readwrite("in_enc_policy", &pe_settings::in_enc_policy)
         .def_readwrite("allowed_enc_level", &pe_settings::allowed_enc_level)
