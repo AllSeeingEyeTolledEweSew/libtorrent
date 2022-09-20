@@ -1,6 +1,5 @@
 import contextlib
 import os
-import sys
 import tempfile
 from typing import AnyStr
 from typing import Iterator
@@ -29,6 +28,9 @@ class EnumTest(unittest.TestCase):
     def test_create_torrent_static_vars(self) -> None:
         self.assertIsInstance(lt.create_torrent.optimize_alignment, int)
         self.assertIsInstance(lt.create_torrent.merkle, int)
+        self.assertIsInstance(lt.create_torrent.v1_only, int)
+        self.assertIsInstance(lt.create_torrent.v2_only, int)
+        self.assertIsInstance(lt.create_torrent.canonical_files, int)
         self.assertIsInstance(lt.create_torrent.modification_time, int)
         self.assertIsInstance(lt.create_torrent.symlinks, int)
 
@@ -36,6 +38,7 @@ class EnumTest(unittest.TestCase):
         self.assertIsInstance(lt.create_torrent_flags_t.optimize_alignment, int)
         self.assertIsInstance(lt.create_torrent_flags_t.optimize, int)
         self.assertIsInstance(lt.create_torrent_flags_t.merkle, int)
+        self.assertIsInstance(lt.create_torrent_flags_t.v2_only, int)
         self.assertIsInstance(lt.create_torrent_flags_t.modification_time, int)
         self.assertIsInstance(lt.create_torrent_flags_t.symlinks, int)
 
@@ -312,7 +315,7 @@ class CreateTorrentTest(unittest.TestCase):
 
         lt.create_torrent(fs)
         lt.create_torrent(fs, piece_size=0)
-        lt.create_torrent(fs, flags=lt.create_torrent_flags_t.optimize)
+        lt.create_torrent(fs, flags=lt.create_torrent_flags_t.v2_only)
 
     def test_generate(self) -> None:
         fs = lt.file_storage()
@@ -381,7 +384,8 @@ class CreateTorrentTest(unittest.TestCase):
         fs = lt.file_storage()
         fs.add_file("test.txt", 1024)
         ct = lt.create_torrent(fs)
-        ct.set_file_hash(0, lib.get_random_bytes(20))
+        with self.assertWarns(DeprecationWarning):
+            ct.set_file_hash(0, lib.get_random_bytes(20))
         ct.set_hash(0, lib.get_random_bytes(20))
         entry = ct.generate()
         self.assertIn(b"sha1", entry[b"info"])
@@ -390,18 +394,21 @@ class CreateTorrentTest(unittest.TestCase):
     def test_set_file_hash_invalid(self) -> None:
         fs = lt.file_storage()
         ct = lt.create_torrent(fs)
-        with self.assertRaises(IndexError):
-            ct.set_file_hash(0, lib.get_random_bytes(20))
-        with self.assertRaises(IndexError):
-            ct.set_file_hash(-1, lib.get_random_bytes(20))
+        with self.assertWarns(DeprecationWarning):
+            with self.assertRaises(IndexError):
+                ct.set_file_hash(0, lib.get_random_bytes(20))
+        with self.assertWarns(DeprecationWarning):
+            with self.assertRaises(IndexError):
+                ct.set_file_hash(-1, lib.get_random_bytes(20))
 
     @unittest.skip("pending backport")
     def test_set_file_hash_short(self) -> None:
         fs = lt.file_storage()
         fs.add_file("test.txt", 1024)
         ct = lt.create_torrent(fs)
-        with self.assertRaises(ValueError):
-            ct.set_file_hash(0, lib.get_random_bytes(19))
+        with self.assertWarns(DeprecationWarning):
+            with self.assertRaises(ValueError):
+                ct.set_file_hash(0, lib.get_random_bytes(19))
 
     @unittest.skip("pending backport")
     def test_set_file_hash_long_deprecated(self) -> None:
@@ -545,7 +552,7 @@ class AddFilesTest(unittest.TestCase):
         fs = lt.file_storage()
         with tempfile.TemporaryDirectory() as path:
             lt.add_files(fs, path)
-            lt.add_files(fs, path, flags=lt.create_torrent_flags_t.optimize)
+            lt.add_files(fs, path, flags=lt.create_torrent_flags_t.v2_only)
 
         # The overloads are:
         # add_files(file_storage, path, flags=0), and
@@ -584,7 +591,7 @@ class AddFilesTest(unittest.TestCase):
                 fs,
                 path,
                 pred,
-                flags=lt.create_torrent_flags_t.optimize,
+                flags=lt.create_torrent_flags_t.v2_only,
             )
             pred.assert_has_calls(calls, any_order=True)
             self.assertEqual(fs.num_files(), 2)
@@ -684,7 +691,6 @@ class SetPieceHashesTest(unittest.TestCase):
             calls = [unittest.mock.call(0)]
             callback.assert_has_calls(calls)
 
-    @unittest.skipIf(sys.platform == "win32", "TODO: this fails on Windows in RC_1_2")
     def test_exceptions(self) -> None:
         fs = lt.file_storage()
         fs.add_file("test.txt", 1024)

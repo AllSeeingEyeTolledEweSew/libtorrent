@@ -68,8 +68,8 @@ class EnumTest(unittest.TestCase):
         with self.assertWarns(DeprecationWarning):
             self.assertIsInstance(lt.file_open_mode.locked, int)
 
-    def test_file_progress_flags(self) -> None:
-        self.assertIsInstance(lt.file_progress_flags.piece_granularity, int)
+    def test_file_progress_flags_t(self) -> None:
+        self.assertIsInstance(lt.file_progress_flags_t.piece_granularity, int)
 
     def test_add_piece_flags_t(self) -> None:
         self.assertIsInstance(lt.add_piece_flags_t.overwrite_existing, int)
@@ -196,7 +196,7 @@ class FileProgressTest(TorrentHandleTest):
     def test_file_progress(self) -> None:
         self.assertEqual(self.handle.file_progress(), [0])
         self.assertEqual(
-            self.handle.file_progress(flags=lt.file_progress_flags.piece_granularity),
+            self.handle.file_progress(flags=lt.file_progress_flags_t.piece_granularity),
             [0],
         )
 
@@ -255,7 +255,17 @@ class TrackersTest(TorrentHandleTest):
         self.assertIsInstance(tr["send_stats"], bool)
         # The overall tracker result has the status layout
         check(tr)
-        # Tracker endpoints are not synchronously updated in RC_1_2
+        self.assertEqual(len(tr["endpoints"]), 1)
+        ip = tr["endpoints"][0]["local_address"]
+        self.assertIsInstance(ip, tuple)
+        self.assertEqual(len(ip), 2)
+        self.assertIsInstance(ip[0], str)
+        self.assertIsInstance(ip[1], int)
+        # The endpoint has the status layout
+        check(tr["endpoints"][0])
+        # The per-info-hash structures have the status layout
+        check(tr["endpoints"][0]["info_hashes"][0])
+        check(tr["endpoints"][0]["info_hashes"][1])
 
     def get_input_entry(self, ae: Mapping[str, Any]) -> Dict[str, Any]:
         return {k: ae[k] for k in ("url", "tier", "fail_limit")}
@@ -308,21 +318,21 @@ class TorrentFileTest(TorrentHandleTest):
         torrent_file = self.handle.torrent_file()
         assert torrent_file is not None
         self.assertEqual(
-            torrent_file.metadata(),
-            self.torrent.torrent_info().metadata(),
+            torrent_file.info_section(),
+            self.torrent.torrent_info().info_section(),
         )
         with self.assertWarns(DeprecationWarning):
             self.assertTrue(self.handle.has_metadata())
         with self.assertWarns(DeprecationWarning):
             self.assertEqual(
-                self.handle.get_torrent_info().metadata(),
-                self.torrent.torrent_info().metadata(),
+                self.handle.get_torrent_info().info_section(),
+                self.torrent.torrent_info().info_section(),
             )
 
     def test_set_metadata(self) -> None:
         self.session.remove_torrent(self.handle)
         self.atp.ti = None
-        self.atp.info_hash = self.torrent.sha1_hash
+        self.atp.info_hashes = lt.info_hash_t(self.torrent.sha1_hash)
 
         handle = self.session.add_torrent(self.atp)
         with self.assertWarns(DeprecationWarning):
@@ -486,7 +496,8 @@ class PrioritiesTest(TorrentHandleTest):
         # List of priorities
         prio_list = self.handle.get_piece_priorities()
         self.assertEqual(len(prio_list), len(self.torrent.pieces))
-        self.assertEqual(self.handle.piece_priorities(), prio_list)
+        with self.assertWarns(DeprecationWarning):
+            self.assertEqual(self.handle.piece_priorities(), prio_list)
         prio_list = [2] * len(prio_list)
         self.handle.prioritize_pieces(prio_list)
 
@@ -507,7 +518,8 @@ class PrioritiesTest(TorrentHandleTest):
         prio_list = [2] * len(self.torrent.files)
         self.handle.prioritize_files(prio_list)
         self.assertEqual(self.handle.get_file_priorities(), prio_list)
-        self.assertEqual(self.handle.file_priorities(), prio_list)
+        with self.assertWarns(DeprecationWarning):
+            self.assertEqual(self.handle.file_priorities(), prio_list)
 
     def test_set_priority(self) -> None:
         # No way to test this
@@ -537,14 +549,12 @@ class ForceReannounceTest(TorrentHandleTest):
     def test_scrape_tracker(self) -> None:
         self.handle.add_tracker({"url": "http://127.1.2.3"})
         self.handle.scrape_tracker()
-        # Tracker endpoints are not synchronously updated in RC_1_2
-        # self.assertEqual(len(self.handle.trackers()[0]["endpoints"]), 1)
+        self.assertEqual(len(self.handle.trackers()[0]["endpoints"]), 1)
 
         self.handle.replace_trackers([])
         self.handle.add_tracker({"url": "http://127.1.2.3"})
         self.handle.scrape_tracker(index=0)
-        # Tracker endpoints are not synchronously updated in RC_1_2
-        # self.assertEqual(len(self.handle.trackers()[0]["endpoints"]), 1)
+        self.assertEqual(len(self.handle.trackers()[0]["endpoints"]), 1)
 
     def do_test_force_reannounce(self, reannounce: Callable[[], Any]) -> None:
         self.handle.replace_trackers([])
@@ -561,15 +571,18 @@ class ForceReannounceTest(TorrentHandleTest):
                 break
 
     def test_force_reannounce(self) -> None:
-        # Tracker endpoints are not synchronously updated in RC_1_2
-        # We can't test functionality here, just exercise the argument patterns
-        self.handle.force_reannounce()
-        self.handle.force_reannounce(seconds=1)
-        self.handle.force_reannounce(seconds=1, tracker_idx=0)
-        self.handle.force_reannounce(
-            seconds=1,
-            tracker_idx=0,
-            flags=lt.reannounce_flags_t.ignore_min_interval,
+        self.do_test_force_reannounce(lambda: self.handle.force_reannounce())
+
+        self.do_test_force_reannounce(lambda: self.handle.force_reannounce(seconds=1))
+        self.do_test_force_reannounce(
+            lambda: self.handle.force_reannounce(seconds=1, tracker_idx=0)
+        )
+        self.do_test_force_reannounce(
+            lambda: self.handle.force_reannounce(
+                seconds=1,
+                tracker_idx=0,
+                flags=lt.reannounce_flags_t.ignore_min_interval,
+            )
         )
 
     def test_force_dht_announce(self) -> None:
@@ -650,6 +663,9 @@ class MoveStorageTest(TorrentHandleTest):
 class InfoHashTest(TorrentHandleTest):
     def test_info_hash(self) -> None:
         self.assertEqual(self.handle.info_hash(), self.torrent.sha1_hash)
+        self.assertEqual(
+            self.handle.info_hashes(), lt.info_hash_t(self.torrent.sha1_hash)
+        )
 
 
 class ForceRecheckTest(TorrentHandleTest):

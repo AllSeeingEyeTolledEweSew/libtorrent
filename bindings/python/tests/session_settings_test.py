@@ -147,7 +147,8 @@ class ProxySettingsTest(unittest.TestCase):
 class DhtSettingsTest(unittest.TestCase):
     @unittest.skip("pending backport")
     def test_dht_settings(self) -> None:
-        ds = lt.dht_settings()
+        with self.assertWarns(DeprecationWarning):
+            ds = lt.dht_settings()
 
         ds.max_peers_reply = 123
         self.assertEqual(ds.max_peers_reply, 123)

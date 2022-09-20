@@ -43,6 +43,65 @@ class FileEntryTest(unittest.TestCase):
             self.assertEqual(fe.size, 0)
 
 
+class InfoHashTest(unittest.TestCase):
+    def test_sha1(self) -> None:
+        sha1 = lt.sha1_hash(lib.get_random_bytes(20))
+
+        ih = lt.info_hash_t(sha1)
+        self.assertEqual(ih.get(lt.protocol_version.V1), sha1)
+        self.assertEqual(ih.get(lt.protocol_version.V2), lt.sha1_hash())
+        self.assertEqual(ih.get_best(), sha1)
+        self.assertTrue(ih.has(lt.protocol_version.V1))
+        self.assertFalse(ih.has(lt.protocol_version.V2))
+        self.assertTrue(ih.has_v1())
+        self.assertFalse(ih.has_v2())
+        self.assertEqual(ih.v1, sha1)
+        self.assertEqual(ih.v2, lt.sha256_hash())
+
+        self.assertEqual(ih, lt.info_hash_t(sha1))
+        self.assertEqual(hash(ih), hash(lt.info_hash_t(sha1)))
+        self.assertNotEqual(ih, lt.info_hash_t())
+
+    def test_sha256(self) -> None:
+        sha256 = lt.sha256_hash(lib.get_random_bytes(32))
+        sha256_trunc = lt.sha1_hash(sha256.to_bytes()[:20])
+
+        ih = lt.info_hash_t(sha256)
+        self.assertEqual(ih.get(lt.protocol_version.V1), lt.sha1_hash())
+        self.assertEqual(ih.get(lt.protocol_version.V2), sha256_trunc)
+        self.assertEqual(ih.get_best(), sha256_trunc)
+        self.assertFalse(ih.has(lt.protocol_version.V1))
+        self.assertTrue(ih.has(lt.protocol_version.V2))
+        self.assertFalse(ih.has_v1())
+        self.assertTrue(ih.has_v2())
+        self.assertEqual(ih.v1, lt.sha1_hash())
+        self.assertEqual(ih.v2, sha256)
+
+        self.assertEqual(ih, lt.info_hash_t(sha256))
+        self.assertEqual(hash(ih), hash(lt.info_hash_t(sha256)))
+        self.assertNotEqual(ih, lt.info_hash_t())
+
+    def test_dual(self) -> None:
+        sha1 = lt.sha1_hash(lib.get_random_bytes(20))
+        sha256 = lt.sha256_hash(lib.get_random_bytes(32))
+        sha256_trunc = lt.sha1_hash(sha256.to_bytes()[:20])
+
+        ih = lt.info_hash_t(sha1, sha256)
+        self.assertEqual(ih.get(lt.protocol_version.V1), sha1)
+        self.assertEqual(ih.get(lt.protocol_version.V2), sha256_trunc)
+        self.assertEqual(ih.get_best(), sha256_trunc)
+        self.assertTrue(ih.has(lt.protocol_version.V1))
+        self.assertTrue(ih.has(lt.protocol_version.V2))
+        self.assertTrue(ih.has_v1())
+        self.assertTrue(ih.has_v2())
+        self.assertEqual(ih.v1, sha1)
+        self.assertEqual(ih.v2, sha256)
+
+        self.assertEqual(ih, lt.info_hash_t(sha1, sha256))
+        self.assertEqual(hash(ih), hash(lt.info_hash_t(sha1, sha256)))
+        self.assertNotEqual(ih, lt.info_hash_t())
+
+
 class ConstructorTest(unittest.TestCase):
     def do_test_filename(self, name: AnyStr) -> None:
         entry = {
@@ -109,7 +168,12 @@ class ConstructorTest(unittest.TestCase):
     def test_copy_constructor(self) -> None:
         ti = tdummy.get_default().torrent_info()
         other = lt.torrent_info(ti)
-        self.assertEqual(ti.info_hash(), other.info_hash())
+        self.assertEqual(ti.info_hashes(), other.info_hashes())
+
+    def test_info_hash(self) -> None:
+        sha1 = lt.sha1_hash(lib.get_random_bytes(20))
+        ti = lt.torrent_info(lt.info_hash_t(sha1))
+        self.assertEqual(ti.info_hashes(), lt.info_hash_t(sha1))
 
     def test_sha1_hash(self) -> None:
         sha1 = lt.sha1_hash(lib.get_random_bytes(20))
@@ -348,7 +412,7 @@ class FieldTest(unittest.TestCase):
 
     def test_info_hash(self) -> None:
         self.assertFalse(self.ti.info_hash().is_all_zeros())
-        self.assertEqual(self.ti.info_hash(), self.ti.info_hash())
+        self.assertEqual(self.ti.info_hashes(), lt.info_hash_t(self.ti.info_hash()))
 
     def test_is_i2p(self) -> None:
         ti = lt.torrent_info(
@@ -386,23 +450,31 @@ class FieldTest(unittest.TestCase):
         self.assertEqual(ti.num_files(), 1)
         self.assertTrue(ti.is_valid())
         self.assertFalse(ti.priv())
-        self.assertEqual(ti.metadata(), lt.bencode(info))
+        self.assertEqual(ti.info_section(), lt.bencode(info))
         self.assertEqual(ti.creation_date(), 12345)
         self.assertEqual(ti.similar_torrents(), [lt.sha1_hash(similar)])
 
     def test_metadata(self) -> None:
-        metadata = self.ti.metadata()
-        size = self.ti.metadata_size()
+        with self.assertWarns(DeprecationWarning):
+            metadata = self.ti.metadata()
+        self.assertEqual(metadata, self.ti.info_section())
+        with self.assertWarns(DeprecationWarning):
+            size = self.ti.metadata_size()
         self.assertEqual(size, len(metadata))
 
     def test_merkle_tree(self) -> None:
-        self.assertFalse(self.ti.is_merkle_torrent())
-        self.assertEqual(self.ti.merkle_tree(), [])
+        with self.assertWarns(DeprecationWarning):
+            self.assertFalse(self.ti.is_merkle_torrent())
+        with self.assertWarns(DeprecationWarning):
+            self.assertEqual(self.ti.merkle_tree(), [])
 
         tree = [lib.get_random_bytes(20)]
-        self.ti.set_merkle_tree(tree)
-        self.assertTrue(self.ti.is_merkle_torrent())
-        self.assertEqual(self.ti.merkle_tree(), tree)
+        with self.assertWarns(DeprecationWarning):
+            self.ti.set_merkle_tree(tree)
+        with self.assertWarns(DeprecationWarning):
+            self.assertTrue(self.ti.is_merkle_torrent())
+        with self.assertWarns(DeprecationWarning):
+            self.assertEqual(self.ti.merkle_tree(), tree)
 
     def test_nodes(self) -> None:
         self.ti.add_node("node1", 1234)

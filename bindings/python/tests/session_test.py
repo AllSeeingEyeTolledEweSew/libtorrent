@@ -13,6 +13,194 @@ from . import lib
 from . import tdummy
 
 
+class ReadWriteSessionParamsTest(unittest.TestCase):
+    def test_read_bdecoded(self) -> None:
+        params = lt.session_params({"alert_mask": 123})
+        bdecoded = lt.write_session_params(params)
+
+        read_params = lt.read_session_params(bdecoded)
+        self.assertIsInstance(read_params, lt.session_params)
+        # self.assertEqual(read_params, params)
+        self.assertEqual(read_params.settings, params.settings)
+
+        read_params = lt.read_session_params(bdecoded, flags=0)
+        self.assertIsInstance(read_params, lt.session_params)
+        # self.assertEqual(read_params, lt.session_params())
+        self.assertEqual(read_params.settings, lt.session_params().settings)
+
+    def test_read_bencoded(self) -> None:
+        params = lt.session_params({"alert_mask": 123})
+        bencoded = lt.bencode(lt.write_session_params(params))
+
+        read_params = lt.read_session_params(bencoded)
+        self.assertIsInstance(read_params, lt.session_params)
+        # self.assertEqual(read_params, params)
+        self.assertEqual(read_params.settings, params.settings)
+
+        read_params = lt.read_session_params(bencoded, flags=0)
+        self.assertIsInstance(read_params, lt.session_params)
+        # self.assertEqual(read_params, lt.session_params())
+        self.assertEqual(read_params.settings, lt.session_params().settings)
+
+    def test_write(self) -> None:
+        params = lt.session_params({"alert_mask": 123})
+
+        bdecoded = lt.write_session_params(params)
+        self.assertIsInstance(bdecoded, dict)
+        self.assertEqual(bdecoded, lt.write_session_params(params))
+
+        bdecoded = lt.write_session_params(
+            params, flags=lt.save_state_flags_t.save_settings
+        )
+        self.assertEqual(set(bdecoded.keys()), {b"settings"})
+
+    @unittest.skip("pending backport")
+    def test_write_empty(self) -> None:
+        bdecoded = lt.write_session_params(lt.session_params(), flags=0)
+        self.assertIsInstance(bdecoded, dict)
+
+    def test_round_trip(self) -> None:
+        params = lt.session_params()
+        params.settings = {"alert_mask": 123}
+
+        read_params = lt.read_session_params(lt.write_session_params(params))
+        self.assertIsInstance(read_params, lt.session_params)
+        # self.assertEqual(params, read_params)
+        self.assertEqual(params.settings, read_params.settings)
+
+
+class SessionParamsTest(unittest.TestCase):
+    def test_constructor(self) -> None:
+        params = lt.session_params()
+        # self.assertEqual(params, lt.session_params())
+        self.assertEqual(params.settings, lt.session_params().settings)
+
+        params = lt.session_params({"alert_mask": 123})
+        expected = lt.session_params().settings
+        expected["alert_mask"] = 123
+        self.assertEqual(params.settings, expected)
+
+    @unittest.skip("https://github.com/arvidn/libtorrent/issues/6140")
+    def test_equality(self) -> None:
+        self.assertEqual(lt.session_params(), lt.session_params())
+        self.assertEqual(
+            lt.session_params({"alert_mask": 123}),
+            lt.session_params({"alert_mask": 123}),
+        )
+
+    def test_settings(self) -> None:
+        params = lt.session_params()
+        params.settings = {"alert_mask": 123}
+        expected = lt.session_params().settings
+        expected["alert_mask"] = 123
+        self.assertEqual(params.settings, expected)
+
+    @unittest.skip("https://github.com/arvidn/libtorrent/issues/6140")
+    def test_settings_reference(self) -> None:
+        params = lt.session_params()
+        params.settings["alert_mask"] = 123
+        self.assertEqual(params.settings["alert_mask"], 123)
+
+    def test_ip_filter(self) -> None:
+        params = lt.session_params()
+        self.assertEqual(
+            params.ip_filter.export_filter(),
+            (
+                [("0.0.0.0", "255.255.255.255")],
+                [("::", "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff")],
+            ),
+        )
+        ipf = lt.ip_filter()
+        ipf.add_rule("128.0.0.0", "128.0.0.1", 123)
+        params.ip_filter = ipf
+        self.assertEqual(
+            params.ip_filter.export_filter(),
+            (
+                [
+                    ("0.0.0.0", "127.255.255.255"),
+                    ("128.0.0.0", "128.0.0.1"),
+                    ("128.0.0.2", "255.255.255.255"),
+                ],
+                [("::", "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff")],
+            ),
+        )
+
+    def test_ip_filter_reference(self) -> None:
+        params = lt.session_params()
+        self.assertEqual(
+            params.ip_filter.export_filter(),
+            (
+                [("0.0.0.0", "255.255.255.255")],
+                [("::", "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff")],
+            ),
+        )
+        params.ip_filter.add_rule("128.0.0.0", "128.0.0.1", 123)
+        self.assertEqual(
+            params.ip_filter.export_filter(),
+            (
+                [
+                    ("0.0.0.0", "127.255.255.255"),
+                    ("128.0.0.0", "128.0.0.1"),
+                    ("128.0.0.2", "255.255.255.255"),
+                ],
+                [("::", "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff")],
+            ),
+        )
+
+    @unittest.skip("https://github.com/arvidn/libtorrent/issues/6140")
+    def test_dht_state(self) -> None:
+        params = lt.session_params()
+        self.assertEqual(params.dht_state, lt.dht_state())
+        state = lt.dht_state()
+        state.nodes = [("127.0.0.1", 1234)]
+        params.dht_state = state
+        self.assertEqual(params.dht_state, state)
+
+    @unittest.skip("https://github.com/arvidn/libtorrent/issues/6140")
+    def test_dht_state_reference(self) -> None:
+        params = lt.session_params()
+        self.assertEqual(params.dht_state, lt.dht_state())
+        params.dht_state.nodes = [("127.0.0.1", 1234)]
+        self.assertEqual(params.dht_state.nodes, [("127.0.0.1", 1234)])
+
+
+class DhtStateTest(unittest.TestCase):
+    def test_constructor(self) -> None:
+        state = lt.dht_state()
+        self.assertIsInstance(state, lt.dht_state)
+
+    @unittest.skip("https://github.com/arvidn/libtorrent/issues/6140")
+    def test_equality(self) -> None:
+        a = lt.dht_state()
+        b = lt.dht_state()
+        self.assertEqual(a, b)
+        a.nodes = [("127.0.0.1", 1234)]
+        self.assertNotEqual(a, b)
+        b.nodes = [("127.0.0.1", 1234)]
+        self.assertNotEqual(a, b)
+
+    @unittest.skip("https://github.com/arvidn/libtorrent/issues/6140")
+    def test_nids(self) -> None:
+        state = lt.dht_state()
+        self.assertEqual(state.nids, [])
+        state.nids = [("127.0.0.1", lt.sha1_hash(b"a" * 20))]
+        self.assertEqual(state.nids, [("127.0.0.1", lt.sha1_hash(b"a" * 20))])
+
+    @unittest.skip("https://github.com/arvidn/libtorrent/issues/6140")
+    def test_nodes(self) -> None:
+        state = lt.dht_state()
+        self.assertEqual(state.nodes, [])
+        state.nodes = [("127.0.0.1", 1234)]
+        self.assertEqual(state.nodes, [("127.0.0.1", 1234)])
+
+    @unittest.skip("https://github.com/arvidn/libtorrent/issues/6140")
+    def test_nodes6(self) -> None:
+        state = lt.dht_state()
+        self.assertEqual(state.nodes6, [])
+        state.nodes6 = [("::1", 1234)]
+        self.assertEqual(state.nodes6, [("::1", 1234)])
+
+
 class SessionStatusTest(unittest.TestCase):
     @unittest.skip("pending backport")
     def test_fields(self) -> None:
@@ -91,7 +279,7 @@ class AddTorrentParamsTest(unittest.TestCase):
         atp.version = 123
         self.assertEqual(atp.version, 123)
         atp.ti = lt.torrent_info(lt.sha1_hash())
-        self.assertEqual(atp.ti.info_hash(), lt.sha1_hash())
+        self.assertEqual(atp.ti.info_hashes().v1, lt.sha1_hash())
         atp.trackers = ["http://example.com/tr"]
         self.assertEqual(atp.trackers, ["http://example.com/tr"])
         atp.tracker_tiers = [1]
@@ -144,8 +332,8 @@ class AddTorrentParamsTest(unittest.TestCase):
         self.assertEqual(atp.num_incomplete, 10)
         atp.num_downloaded = 10
         self.assertEqual(atp.num_downloaded, 10)
-        atp.info_hash = lt.sha1_hash()
-        self.assertEqual(atp.info_hash, lt.sha1_hash())
+        atp.info_hashes = lt.info_hash_t(lt.sha1_hash())
+        self.assertEqual(atp.info_hashes.v1, lt.sha1_hash())
         atp.url_seeds = ["http://example.com/seed"]
         self.assertEqual(atp.url_seeds, ["http://example.com/seed"])
         atp.peers = [("1.2.3.4", 4321)]
@@ -570,6 +758,34 @@ class ResumeDataTest(unittest.TestCase):
         atp.name = "test"
         self.do_test_round_trip(atp)
 
+    def test_limit_decode_depth(self) -> None:
+        atp = lt.add_torrent_params()
+        buf = lt.write_resume_data_buf(atp)
+        with self.assertRaises(RuntimeError):
+            lt.read_resume_data(buf, {"max_decode_depth": 1})
+
+    def test_limit_decode_tokens(self) -> None:
+        atp = lt.add_torrent_params()
+        buf = lt.write_resume_data_buf(atp)
+        with self.assertRaises(RuntimeError):
+            lt.read_resume_data(buf, {"max_decode_tokens": 1})
+
+    def test_limit_pieces(self) -> None:
+        atp = lt.add_torrent_params()
+        atp.ti = lt.torrent_info(
+            {
+                b"info": {
+                    b"name": b"test.txt",
+                    b"length": 1234000,
+                    b"piece length": 16384,
+                    b"pieces": b"aaaaaaaaaaaaaaaaaaaa" * (1234000 // 16384 + 1),
+                }
+            }
+        )
+        buf = lt.write_resume_data_buf(atp)
+        with self.assertRaises(RuntimeError):
+            lt.read_resume_data(buf, {"max_pieces": 1})
+
 
 class ConstructorTest(unittest.TestCase):
 
@@ -947,7 +1163,8 @@ class AddTorrentTest(unittest.TestCase):
         handle = self.do_test_dict(
             {
                 "ti": ti,
-                "info_hash": ti.info_hash().to_bytes(),
+                "info_hash": ti.info_hashes().v1.to_bytes(),
+                "info_hashes": ti.info_hashes().v1.to_bytes(),
                 "save_path": self.dir.name,
                 "storage_mode": lt.storage_mode_t.storage_mode_allocate,
                 "trackers": ["http://127.1.2.1/tr"],
@@ -996,15 +1213,25 @@ class AddTorrentTest(unittest.TestCase):
     def test_dict_name(self) -> None:
         # This can only be tested *without* torrent info
         handle = self.do_test_dict(
-            {"info_hash": b"a" * 20, "save_path": self.dir.name, "name": "test-name"}
+            {"info_hashes": b"a" * 20, "save_path": self.dir.name, "name": "test-name"}
         )
 
         self.assertEqual(handle.status().name, "test-name")
 
     @unittest.skip("pending backport")
     def test_dict_no_torrent_info_sha1(self) -> None:
-        handle = self.do_test_dict({"info_hash": b"a" * 20, "save_path": self.dir.name})
-        self.assertEqual(handle.info_hash().to_bytes(), b"a" * 20)
+        handle = self.do_test_dict(
+            {"info_hashes": b"a" * 20, "save_path": self.dir.name}
+        )
+        self.assertEqual(handle.info_hashes().v1.to_bytes(), b"a" * 20)
+
+    @unittest.skip("pending backport")
+    def test_dict_no_torrent_info_sha256(self) -> None:
+        handle = self.do_test_dict(
+            {"info_hashes": b"a" * 32, "save_path": self.dir.name}
+        )
+
+        self.assertEqual(handle.info_hashes().v2.to_bytes(), b"a" * 32)
 
     @unittest.skip("pending backport")
     def test_dict_errors(self) -> None:
@@ -1427,3 +1654,19 @@ class SessionStatsMetricsTest(unittest.TestCase):
         self.assertEqual(lt.find_metric_idx(metric.name), 0)
 
         self.assertLess(lt.find_metric_idx("does-not-exist"), 0)
+
+
+class SessionStateTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.settings = lib.get_isolated_settings()
+        self.session = lt.session(self.settings)
+
+    @unittest.skip("pending backport")
+    def test_session_state(self) -> None:
+        # By default, everything should be included
+        params = self.session.session_state()
+        self.assertLessEqual(set(self.settings.items()), set(params.settings.items()))
+
+        # With flags=0, nothing should be included
+        params = self.session.session_state(flags=0)
+        self.assertEqual(params.settings, lt.session_params().settings)

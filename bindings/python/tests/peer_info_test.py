@@ -11,6 +11,7 @@ class EnumTest(unittest.TestCase):
         self.assertIsInstance(lt.peer_info.remote_choked, int)
         self.assertIsInstance(lt.peer_info.supports_extensions, int)
         self.assertIsInstance(lt.peer_info.local_connection, int)
+        self.assertIsInstance(lt.peer_info.outgoing_connection, int)
         self.assertIsInstance(lt.peer_info.handshake, int)
         self.assertIsInstance(lt.peer_info.connecting, int)
         self.assertIsInstance(lt.peer_info.queued, int)
@@ -26,6 +27,7 @@ class EnumTest(unittest.TestCase):
 
         self.assertIsInstance(lt.peer_info.standard_bittorrent, int)
         self.assertIsInstance(lt.peer_info.web_seed, int)
+        self.assertIsInstance(lt.peer_info.http_seed, int)
 
         self.assertIsInstance(lt.peer_info.tracker, int)
         self.assertIsInstance(lt.peer_info.dht, int)

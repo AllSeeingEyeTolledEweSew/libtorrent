@@ -122,7 +122,6 @@ class _AddTorrentParamsDict(TypedDict, total=False):
     trackerid: str
     renamed_files: Dict[int, str]
     file_priorities: List[int]
-    uuid: str
 
 def parse_magnet_uri_dict(_uri: str) -> _AddTorrentParamsDict: ...
 @overload
@@ -131,6 +130,10 @@ def read_resume_data(_bencoded: bytes) -> add_torrent_params: ...
 def read_resume_data(
     _bencoded: bytes, _limits: Dict[str, Any]
 ) -> add_torrent_params: ...
+@overload
+def read_session_params(buffer: bytes, flags: int = ...) -> session_params: ...
+@overload
+def read_session_params(dict: Dict[bytes, Any], flags: int = ...) -> session_params: ...
 def session_stats_metrics() -> List[stats_metric]: ...
 @overload
 def set_piece_hashes(
@@ -143,6 +146,9 @@ def system_category() -> error_category: ...
 def upnp_category() -> error_category: ...
 def write_resume_data(_atp: add_torrent_params) -> Dict[bytes, Any]: ...
 def write_resume_data_buf(_atp: add_torrent_params) -> bytes: ...
+def write_session_params(
+    entry: session_params, flags: int = ...
+) -> Dict[bytes, Any]: ...
 
 class add_piece_flags_t:
     overwrite_existing: int
@@ -164,6 +170,7 @@ class add_torrent_params:
     have_pieces: List[bool]
     http_seeds: List[str]
     info_hash: sha1_hash
+    info_hashes: info_hash_t
     last_download: int
     last_seen_complete: int
     last_upload: int
@@ -403,10 +410,13 @@ class close_reason_t(int):
     values: Mapping[int, close_reason_t]
 
 class create_torrent:
+    canonical_files: int
     merkle: int
     modification_time: int
     optimize_alignment: int
     symlinks: int
+    v1_only: int
+    v2_only: int
     @overload
     def __init__(
         self, storage: file_storage, piece_size: int = ..., flags: int = ...
@@ -558,6 +568,11 @@ class dht_settings:
     restrict_search_ips: bool
     search_branching: int
 
+class dht_state:
+    nids: List[Tuple[str, sha1_hash]]
+    nodes: List[Tuple[str, int]]
+    nodes6: List[Tuple[str, int]]
+
 class _DhtStatsActiveRequest(TypedDict):
     type: Optional[str]
     outstanding_requests: int
@@ -667,7 +682,10 @@ class file_open_mode:
     sparse: int
     write_only: int
 
-class file_progress_flags:
+class file_prio_alert(torrent_alert):
+    pass
+
+class file_progress_flags_t:
     piece_granularity: int
 
 class file_rename_failed_alert(torrent_alert):
@@ -676,6 +694,7 @@ class file_rename_failed_alert(torrent_alert):
 
 class file_renamed_alert(torrent_alert):
     def new_name(self) -> str: ...
+    def old_name(self) -> str: ...
     index: int
     name: str
 
@@ -741,8 +760,27 @@ class i2p_alert(alert):
 class incoming_connection_alert(alert):
     endpoint: Tuple[str, int]
     ip: Tuple[str, int]
-    # NB: this is socket_type_t in RC_2_0
-    socket_type: int
+    socket_type: socket_type_t
+
+class info_hash_t:
+    @overload
+    def __init__(self) -> None: ...
+    @overload
+    def __init__(self, sha1_hash: sha1_hash) -> None: ...
+    @overload
+    def __init__(self, sha256_hash: sha256_hash) -> None: ...
+    @overload
+    def __init__(self, sha1_hash: sha1_hash, sha256_hash: sha256_hash) -> None: ...
+    def get(self, _v: protocol_version) -> sha1_hash: ...
+    def get_best(self) -> sha1_hash: ...
+    def has(self, _v: protocol_version) -> bool: ...
+    def has_v1(self) -> bool: ...
+    def has_v2(self) -> bool: ...
+    def __eq__(self, other: Any) -> bool: ...
+    def __lt__(self, other: Any) -> bool: ...
+    def __ne__(self, other: Any) -> bool: ...
+    v1: sha1_hash
+    v2: sha256_hash
 
 class invalid_request_alert(peer_alert):
     request: peer_request
@@ -945,8 +983,7 @@ class peer_disconnected_alert(peer_alert):
     msg: str
     op: operation_t
     reason: close_reason_t
-    # NB: this is socket_type_t in RC_2_0
-    socket_type: int
+    socket_type: socket_type_t
 
 class peer_error_alert(peer_alert):
     error: error_code
@@ -967,11 +1004,13 @@ class peer_info:
     endgame_mode: int
     handshake: int
     holepunched: int
+    http_seed: int
     interesting: int
     local_connection: int
     lsd: int
     on_parole: int
     optimistic_unchoke: int
+    outgoing_connection: int
     pex: int
     plaintext_encrypted: int
     queued: int
@@ -1133,6 +1172,12 @@ class portmap_transport(int):
 class protocol_type:
     tcp: portmap_protocol
     udp: portmap_protocol
+
+class protocol_version(int):
+    V1: protocol_version
+    V2: protocol_version
+    names: Mapping[str, protocol_version]
+    values: Mapping[int, protocol_version]
 
 class proxy_type_t(int):
     http: proxy_type_t
@@ -1332,6 +1377,7 @@ class session:
     def reopen_network_sockets(self, _options: int) -> None: ...
     def resume(self) -> None: ...
     def save_state(self, flags: int = ...) -> Dict[bytes, Any]: ...
+    def session_state(self, flags: int = ...) -> session_params: ...
     def set_alert_fd(self, _fd: int) -> None: ...
     def set_alert_mask(self, _mask: int) -> None: ...
     def set_alert_notify(self, _callback: Callable[[], Any]) -> None: ...
@@ -1376,6 +1422,15 @@ class session_flags_t:
     add_default_plugins: int
     paused: int
     start_default_features: int
+
+class session_params:
+    @overload
+    def __init__(self) -> None: ...
+    @overload
+    def __init__(self, _settings: Dict[str, Any]) -> None: ...
+    dht_state: dht_state
+    ip_filter: ip_filter
+    settings: Dict[str, Any]
 
 class session_stats_alert(alert):
     values: Dict[str, int]
@@ -1445,13 +1500,31 @@ class sha1_hash:
     def __lt__(self, other: Any) -> bool: ...
     def __ne__(self, other: Any) -> bool: ...
 
+class sha256_hash:
+    @overload
+    def __init__(self) -> None: ...
+    @overload
+    def __init__(self, _digest: bytes) -> None: ...
+    def clear(self) -> None: ...
+    def is_all_zeros(self) -> bool: ...
+    def to_bytes(self) -> bytes: ...
+    def to_string(self) -> bytes: ...
+    def __eq__(self, other: Any) -> bool: ...
+    def __hash__(self) -> int: ...
+    def __lt__(self, other: Any) -> bool: ...
+    def __ne__(self, other: Any) -> bool: ...
+
 class socket_type_t(int):
+    http: socket_type_t
+    http_ssl: socket_type_t
     i2p: socket_type_t
     names: Mapping[str, socket_type_t]
     socks5: socket_type_t
+    socks5_ssl: socket_type_t
     tcp: socket_type_t
     tcp_ssl: socket_type_t
     udp: socket_type_t
+    utp: socket_type_t
     utp_ssl: socket_type_t
     values: Mapping[int, socket_type_t]
 
@@ -1504,6 +1577,7 @@ class storage_mode_t(int):
     values: Mapping[int, storage_mode_t]
 
 class storage_moved_alert(torrent_alert):
+    def old_path(self) -> str: ...
     def storage_path(self) -> str: ...
     path: str
 
@@ -1532,10 +1606,12 @@ class torrent_checked_alert(torrent_alert):
 class torrent_delete_failed_alert(torrent_alert):
     error: error_code
     info_hash: sha1_hash
+    info_hashes: info_hash_t
     msg: str
 
 class torrent_deleted_alert(torrent_alert):
     info_hash: sha1_hash
+    info_hashes: info_hash_t
 
 class torrent_error_alert(torrent_alert):
     error: error_code
@@ -1678,6 +1754,7 @@ class torrent_handle:
     def have_piece(self, _index: int) -> bool: ...
     def http_seeds(self) -> List[str]: ...
     def info_hash(self) -> sha1_hash: ...
+    def info_hashes(self) -> info_hash_t: ...
     def is_auto_managed(self) -> bool: ...
     def is_finished(self) -> bool: ...
     def is_paused(self) -> bool: ...
@@ -1773,7 +1850,11 @@ class _WebSeedDict(TypedDict):
 
 class torrent_info:
     @overload
+    def __init__(self, _info_hashes: info_hash_t) -> None: ...
+    @overload
     def __init__(self, _info_hash: sha1_hash) -> None: ...
+    @overload
+    def __init__(self, _info_hash: sha256_hash) -> None: ...
     @overload
     def __init__(self, ti: torrent_info) -> None: ...
     @overload
@@ -1814,6 +1895,8 @@ class torrent_info:
     def files(self) -> file_storage: ...
     def hash_for_piece(self, _index: int) -> bytes: ...
     def info_hash(self) -> sha1_hash: ...
+    def info_hashes(self) -> info_hash_t: ...
+    def info_section(self) -> bytes: ...
     def is_i2p(self) -> bool: ...
     def is_merkle_torrent(self) -> bool: ...
     def is_valid(self) -> bool: ...
@@ -1853,6 +1936,7 @@ class torrent_paused_alert(torrent_alert):
 
 class torrent_removed_alert(torrent_alert):
     info_hash: sha1_hash
+    info_hashes: info_hash_t
 
 class torrent_resumed_alert(torrent_alert):
     pass
@@ -1910,6 +1994,7 @@ class torrent_status:
     has_incoming: bool
     has_metadata: bool
     info_hash: sha1_hash
+    info_hashes: info_hash_t
     ip_filter_applies: bool
     is_finished: bool
     is_loaded: bool
@@ -1977,6 +2062,7 @@ class tracker_announce_alert(tracker_alert):
 
 class tracker_error_alert(tracker_alert):
     def error_message(self) -> str: ...
+    def failure_reason(self) -> str: ...
     error: error_code
     msg: str
     status_code: int

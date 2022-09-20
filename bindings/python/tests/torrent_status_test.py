@@ -32,8 +32,8 @@ class TorrentStatusTest(unittest.TestCase):
         self.assertIsInstance(self.status.torrent_file, lt.torrent_info)
         assert self.status.torrent_file is not None
         self.assertEqual(
-            self.status.torrent_file.metadata(),
-            self.torrent.torrent_info().metadata(),
+            self.status.torrent_file.info_section(),
+            self.torrent.torrent_info().info_section(),
         )
 
         self.assertIsInstance(self.status.state, lt.torrent_status.states)
@@ -145,6 +145,8 @@ class TorrentStatusTest(unittest.TestCase):
 
         self.assertIsInstance(self.status.info_hash, lt.sha1_hash)
         self.assertEqual(self.status.info_hash, self.torrent.sha1_hash)
+        self.assertIsInstance(self.status.info_hashes, lt.info_hash_t)
+        self.assertEqual(self.status.info_hashes.v1, self.torrent.sha1_hash)
 
         self.assertIsInstance(self.status.last_upload, (type(None), datetime.datetime))
         self.assertIsInstance(

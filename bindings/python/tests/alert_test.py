@@ -189,9 +189,13 @@ class EnumTest(unittest.TestCase):
     def test_socket_type_t(self) -> None:
         self.assertIsInstance(lt.socket_type_t.tcp, int)
         self.assertIsInstance(lt.socket_type_t.socks5, int)
+        self.assertIsInstance(lt.socket_type_t.http, int)
+        self.assertIsInstance(lt.socket_type_t.utp, int)
         self.assertIsInstance(lt.socket_type_t.udp, int)
         self.assertIsInstance(lt.socket_type_t.i2p, int)
         self.assertIsInstance(lt.socket_type_t.tcp_ssl, int)
+        self.assertIsInstance(lt.socket_type_t.socks5_ssl, int)
+        self.assertIsInstance(lt.socket_type_t.http_ssl, int)
         self.assertIsInstance(lt.socket_type_t.utp_ssl, int)
 
     @unittest.skip("https://github.com/arvidn/libtorrent/issues/5967")
@@ -518,6 +522,7 @@ class TorrentRemovedAlertTest(TorrentAlertTest):
         self.assert_alert(alert, lt.alert_category.status, "torrent_removed")
         self.assert_torrent_alert(alert, handle)
         self.assertEqual(alert.info_hash, self.torrent.sha1_hash)
+        self.assertEqual(alert.info_hashes.v1, self.torrent.sha1_hash)
 
     @unittest.skip("https://github.com/arvidn/libtorrent/issues/5967")
     def test_deprecated(self) -> None:
@@ -665,8 +670,7 @@ class TrackerAlertTest(TorrentAlertTest):
         endpoint = alert.local_endpoint
         self.assertIsInstance(endpoint, tuple)
         self.assertEqual(len(endpoint), 2)
-        # tracker local endpoints are not synchronously assigned in RC_1_2
-        self.assertIn(endpoint[0], ("0.0.0.0", "127.0.0.1"))
+        self.assertEqual(endpoint[0], "127.0.0.1")
         self.assertIsInstance(endpoint[1], int)
 
 
@@ -689,6 +693,7 @@ class TrackerErrorAlertTest(TrackerAlertTest):
         self.assertEqual(alert.msg, "test")
         self.assertEqual(alert.status_code, -1)
         self.assertEqual(alert.error_message(), "test")
+        self.assertEqual(alert.failure_reason(), "test")
         self.assertEqual(alert.times_in_row, 1)
         self.assertEqual(alert.error.category(), lt.libtorrent_category())
         self.assertEqual(alert.error.value(), 173)  # "tracker sent a failure message"
@@ -936,6 +941,7 @@ class StorageMovedAlertTest(TorrentAlertTest):
         self.assert_torrent_alert(alert, handle)
         self.assertEqual(alert.path, new)
         self.assertEqual(alert.storage_path(), new)
+        self.assertEqual(alert.old_path(), self.dir.name)
 
     @unittest.skip("https://github.com/arvidn/libtorrent/issues/5967")
     def test_deprecated(self) -> None:
@@ -1017,6 +1023,7 @@ class TorrentDeletedAlertTest(TorrentAlertTest):
         self.assert_alert(alert, lt.alert_category.storage, "torrent_deleted")
         self.assert_torrent_alert(alert, handle)
         self.assertEqual(alert.info_hash, self.torrent.sha1_hash)
+        self.assertEqual(alert.info_hashes.v1, self.torrent.sha1_hash)
 
     @unittest.skip("https://github.com/arvidn/libtorrent/issues/5967")
     def test_deprecated(self) -> None:
@@ -1141,7 +1148,7 @@ class MetadataFailedAlertTest(TorrentAlertTest):
     def test_metadata_failed_alert(self) -> None:
         self.atp.ti = None
         self.atp.name = self.torrent_name
-        self.atp.info_hash = self.torrent.sha1_hash
+        self.atp.info_hashes = lt.info_hash_t(self.torrent.sha1_hash)
         handle = self.session.add_torrent(self.atp)
         handle.set_metadata(b"invalid")
 
@@ -1159,7 +1166,7 @@ class MetadataReceivedAlertTest(TorrentAlertTest):
     def test_metadata_failed_alert(self) -> None:
         self.atp.ti = None
         self.atp.name = self.torrent_name
-        self.atp.info_hash = self.torrent.sha1_hash
+        self.atp.info_hashes = lt.info_hash_t(self.torrent.sha1_hash)
         handle = self.session.add_torrent(self.atp)
         handle.set_metadata(lt.bencode(self.torrent.info))
 
@@ -1415,10 +1422,10 @@ class SaveResumeDataAlertTest(TorrentAlertTest):
         self.assert_alert(alert, lt.alert_category.storage, "save_resume_data")
         self.assert_torrent_alert(alert, handle)
         self.assertIsInstance(alert.params, lt.add_torrent_params)
-        self.assertEqual(alert.params.info_hash, self.torrent.sha1_hash)
+        self.assertEqual(alert.params.info_hashes.v1, self.torrent.sha1_hash)
         with self.assertWarns(DeprecationWarning):
             atp = lt.read_resume_data(lt.bencode(alert.resume_data))
-        self.assertEqual(atp.info_hash, self.torrent.sha1_hash)
+        self.assertEqual(atp.info_hashes.v1, self.torrent.sha1_hash)
 
 
 class FileCompletedAlertTest(TorrentAlertTest):
@@ -1457,6 +1464,7 @@ class FileRenamedAlertTest(TorrentAlertTest):
         self.assertEqual(alert.new_name(), "other.txt")
         ti = self.atp.ti
         assert ti is not None
+        self.assertEqual(alert.old_name(), ti.files().file_path(0))
 
     @unittest.skip("https://github.com/arvidn/libtorrent/issues/5967")
     def test_deprecated(self) -> None:
@@ -1672,7 +1680,7 @@ class PeerDisconnectedAlertTest(PeerAlertTest):
         self.assert_alert(alert, lt.alert_category.connect, "peer_disconnected")
         self.assert_torrent_alert(alert, handle)
         self.assert_peer_alert(alert, self.peer_endpoint, pid=lt.sha1_hash())
-        self.assertIsInstance(alert.socket_type, int)
+        self.assertIsInstance(alert.socket_type, lt.socket_type_t)
         self.assertIsInstance(alert.op, lt.operation_t)
         self.assertIsInstance(alert.error.category(), lt.error_category)
         self.assertIsInstance(alert.error.value(), int)
@@ -1765,6 +1773,7 @@ class TorrentDeleteFailedAlertTest(TorrentAlertTest):
         self.assertEqual(errno_value, errno.ENOTEMPTY)
         self.assertEqual(alert.error.category(), lt.system_category())
         self.assertEqual(alert.info_hash, self.torrent.sha1_hash)
+        self.assertEqual(alert.info_hashes.v1, self.torrent.sha1_hash)
 
     @unittest.skip("https://github.com/arvidn/libtorrent/issues/5967")
     def test_deprecated(self) -> None:
@@ -1904,7 +1913,7 @@ class IncomingConnectionAlertTest(PeerAlertTest):
         alert = wait_for(self.session, lt.incoming_connection_alert, timeout=5)
 
         self.assert_alert(alert, lt.alert_category.peer, "incoming_connection")
-        self.assertIsInstance(alert.socket_type, int)
+        self.assertIsInstance(alert.socket_type, lt.socket_type_t)
         self.assertEqual(alert.ip, self.peer_endpoint)
         self.assertEqual(alert.endpoint, self.peer_endpoint)
 
@@ -2034,7 +2043,7 @@ class DhtStatsAlertTest(DhtAlertTest):
         self.session.post_dht_stats()
 
         alert = wait_for(self.session, lt.dht_stats_alert, timeout=5)
-        self.assert_alert(alert, lt.alert_category.stats, "dht_stats")
+        self.assert_alert(alert, 0, "dht_stats")
         self.assertEqual(alert.active_requests, [])
         self.assertEqual(alert.routing_table, [{"num_nodes": 0, "num_replacements": 0}])
 
@@ -2192,7 +2201,7 @@ class SessionStatsAlertTest(AlertTest):
 
         alert = wait_for(self.session, lt.session_stats_alert, timeout=5)
 
-        self.assert_alert(alert, lt.alert_category.stats, "session_stats")
+        self.assert_alert(alert, 0, "session_stats")
         self.assertIsInstance(alert.values, dict)
         self.assertEqual(
             set(alert.values.keys()),
@@ -2209,7 +2218,7 @@ class SessionStatsHeaderAlertTest(AlertTest):
 
         alert = wait_for(self.session, lt.session_stats_header_alert, timeout=5)
 
-        self.assert_alert(alert, lt.alert_category.stats, "session_stats_header")
+        self.assert_alert(alert, 0, "session_stats_header")
 
 
 class DhtGetPeersReplyAlertTest(DhtAlertTest):
@@ -2289,6 +2298,19 @@ class Socks5AlertTest(AlertTest):
         self.assertEqual(alert.ip, ("127.1.2.3", 12345))
 
 
+class FilePrioAlertTest(TorrentAlertTest):
+    ALERT_MASK = lt.alert_category.storage
+
+    def test_file_prio_alert(self) -> None:
+        handle = self.session.add_torrent(self.atp)
+        handle.file_priority(0, 0)
+
+        alert = wait_for(self.session, lt.file_prio_alert, timeout=5)
+
+        self.assert_alert(alert, lt.alert_category.storage, "file_prio")
+        self.assert_torrent_alert(alert, handle)
+
+
 class DhtLiveNodesAlertTest(DhtAlertTest):
     def test_dht_live_nodes_alert(self) -> None:
         self.session.dht_live_nodes(self.torrent.sha1_hash)
@@ -2316,7 +2338,12 @@ class DhtSampleInfohashesAlertTest(DhtAlertTest):
             alert, lt.alert_category.dht_operation, "dht_sample_infohashes"
         )
         self.assertEqual(alert.endpoint, self.peer_endpoint)
-        self.assertIsInstance(alert.interval, datetime.timedelta)
+        self.assertEqual(
+            alert.interval,
+            datetime.timedelta(
+                seconds=self.session.get_settings()["dht_sample_infohashes_interval"]
+            ),
+        )
         self.assertEqual(alert.num_infohashes, 1)
         self.assertEqual(alert.num_samples, 1)
         self.assertEqual(alert.samples, [self.torrent.sha1_hash])
