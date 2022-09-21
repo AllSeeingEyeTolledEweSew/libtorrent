@@ -967,21 +967,18 @@ class StorageMovedFailedAlertTest(TorrentAlertTest):
 
         alert = wait_for(self.session, lt.storage_moved_failed_alert, timeout=5)
 
-        print(f"{alert.error.message()} : {alert.error.category().name()}")
-
         self.assert_alert(alert, lt.alert_category.storage, "storage_moved_failed")
         self.assert_torrent_alert(alert, handle)
         self.assertIsInstance(alert.error.value(), int)
         self.assertNotEqual(alert.error.value(), 0)
-        self.assertTrue(
-            alert.error.category() == lt.system_category()
-            or alert.error.category() == lt.generic_category()
-        )
+        # The exact error encountered is unstable between platforms, even between
+        # versions of Windows.
+        # TODO: is there a way to generate a stable error?
+        self.assertIsInstance(alert.error.category(), lt.error_category)
         self.assertEqual(alert.file_path(), self.file_path)
-        self.assertTrue(
-            alert.op in [lt.operation_t.file_open, lt.operation_t.file_rename]
-        )
-        self.assertTrue(alert.operation in ["file_open", "file_rename"])
+        self.assertIsInstance(alert.op, lt.operation_t)
+        self.assertIsInstance(alert.operation, str)
+        self.assertEqual(lt.operation_t.names[alert.operation], alert.op)
 
     @unittest.skip("https://github.com/arvidn/libtorrent/issues/5967")
     def test_deprecated(self) -> None:
