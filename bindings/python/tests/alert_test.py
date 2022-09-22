@@ -282,7 +282,6 @@ class EnumTest(unittest.TestCase):
         with self.assertWarns(DeprecationWarning):
             self.assertIsInstance(lt.kind.tracker_no_anonymous, int)
 
-    @unittest.skip("pending backport")
     def test_close_reason_t(self) -> None:
         self.assertIsInstance(lt.close_reason_t.blocked, int)
         self.assertIsInstance(lt.close_reason_t.corrupt_pieces, int)
@@ -335,7 +334,6 @@ class EnumTest(unittest.TestCase):
         self.assertIsInstance(lt.close_reason_t.torrent_removed, int)
         self.assertIsInstance(lt.close_reason_t.upload_to_upload, int)
 
-    @unittest.skip("pending backport")
     def test_dht_module_t(self) -> None:
         self.assertIsInstance(lt.dht_module_t.node, int)
         self.assertIsInstance(lt.dht_module_t.routing_table, int)
@@ -343,7 +341,6 @@ class EnumTest(unittest.TestCase):
         self.assertIsInstance(lt.dht_module_t.tracker, int)
         self.assertIsInstance(lt.dht_module_t.traversal, int)
 
-    @unittest.skip("pending backport")
     def test_picker_flags_t(self) -> None:
         self.assertIsInstance(lt.picker_flags_t.backup1, int)
         self.assertIsInstance(lt.picker_flags_t.backup2, int)
@@ -1668,7 +1665,6 @@ class PeerConnectAlertTest(PeerAlertTest):
 class PeerDisconnectedAlertTest(PeerAlertTest):
     ALERT_MASK = lt.alert_category.connect
 
-    @unittest.skip("pending backport")
     def test_peer_disconnected_alert(self) -> None:
         handle = self.session.add_torrent(self.atp)
         peer_handle = self.peer.add_torrent(self.peer_atp)
@@ -2012,7 +2008,6 @@ class PeerLogAlertTest(PeerAlertTest):
 class PickerLogAlertTest(PeerAlertTest):
     ALERT_MASK = lt.alert_category.picker_log
 
-    @unittest.skip("pending backport")
     def test_picker_log_alert(self) -> None:
         handle = self.session.add_torrent(self.atp)
         peer_handle = self.peer.add_torrent(self.peer_atp)
@@ -2051,7 +2046,6 @@ class DhtStatsAlertTest(DhtAlertTest):
 class DhtLogAlertTest(DhtAlertTest):
     ALERT_MASK = lt.alert_category.dht_log
 
-    @unittest.skip("pending backport")
     def test_dht_alert_log_alert(self) -> None:
         # Generate some logs
         self.session.dht_announce(lt.sha1_hash(b"a" * 20))
@@ -2067,7 +2061,6 @@ class DhtLogAlertTest(DhtAlertTest):
 class DhtPktAlertTest(DhtAlertTest):
     ALERT_MASK = lt.alert_category.dht_log
 
-    @unittest.skip("pending backport")
     def test_dht_pkt_alert(self) -> None:
         # Generate some packets
         self.session.dht_announce(lt.sha1_hash(b"a" * 20))
@@ -2084,7 +2077,6 @@ class DhtPktAlertTest(DhtAlertTest):
 class DhtImmutableItemAlertTest(DhtAlertTest):
     ALERT_MASK = lt.alert_category.dht
 
-    @unittest.skip("pending backport")
     def test_dht_immutable_item_alert(self) -> None:
         item = {b"test": b"test"}
         sha1 = self.session.dht_put_immutable_item(item)
@@ -2102,7 +2094,6 @@ class DhtImmutableItemAlertTest(DhtAlertTest):
 class DhtMutableItemAlertTest(DhtAlertTest):
     ALERT_MASK = lt.alert_category.dht
 
-    @unittest.skip("pending backport")
     def test_dht_mutable_item_alert(self) -> None:
         # NB: libtorrent uses private keys in hased-and-exponentiated form, not
         # concatenated <seed><pubkey> form used by some implementations
@@ -2140,7 +2131,6 @@ class DhtMutableItemAlertTest(DhtAlertTest):
 class DhtPutAlertTest(DhtAlertTest):
     ALERT_MASK = lt.alert_category.dht
 
-    @unittest.skip("pending backport")
     def test_dht_put_alert_with_immutable(self) -> None:
         item = {b"test": b"test"}
         sha1 = self.session.dht_put_immutable_item(item)
@@ -2159,7 +2149,6 @@ class DhtPutAlertTest(DhtAlertTest):
         # should at least be 1.
         self.assertGreater(alert.num_success, 0)
 
-    @unittest.skip("pending backport")
     def test_dht_put_alert_with_mutable(self) -> None:
         # NB: libtorrent uses private keys in hased-and-exponentiated form, not
         # concatenated <seed><pubkey> form used by some implementations

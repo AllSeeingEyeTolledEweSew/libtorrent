@@ -79,7 +79,6 @@ class FileStorageTest(unittest.TestCase):
         fs.add_file(os.path.join("path", "file.txt"), 1024, linkpath="other.txt")
         self.assertEqual(fs.symlink(0), os.path.join("path", "other.txt"))
 
-    @unittest.skip("pending backport")
     def test_add_file_bytes(self) -> None:
         fs = lt.file_storage()
         with self.assertWarns(DeprecationWarning):
@@ -101,7 +100,6 @@ class FileStorageTest(unittest.TestCase):
         fs.add_file("file.txt", 1024)
         self.assertEqual(fs.num_files(), 1)
 
-    @unittest.skip("pending backport")
     def test_add_file_entry(self) -> None:
         fs = lt.file_storage()
         # It's not clear this path has ever been useful, as the entry size can't
@@ -112,7 +110,6 @@ class FileStorageTest(unittest.TestCase):
         with self.assertWarns(DeprecationWarning):
             fs.add_file(fe)
 
-    @unittest.skip("pending backport")
     def test_at_invalid(self) -> None:
         fs = lt.file_storage()
         with self.assertWarns(DeprecationWarning):
@@ -154,7 +151,6 @@ class FileStorageTest(unittest.TestCase):
         fs.add_file(os.path.join("path", "test.txt"), 0, linkpath="other.txt")
         self.assertEqual(fs.symlink(0), os.path.join("path", "other.txt"))
 
-    @unittest.skip("pending backport")
     def test_symlink_invalid(self) -> None:
         fs = lt.file_storage()
         with self.assertRaises(IndexError):
@@ -170,7 +166,6 @@ class FileStorageTest(unittest.TestCase):
             fs.file_path(0, save_path="base"), os.path.join("base", "path", "test.txt")
         )
 
-    @unittest.skip("pending backport")
     def test_file_path_invalid(self) -> None:
         fs = lt.file_storage()
         with self.assertRaises(IndexError):
@@ -183,7 +178,6 @@ class FileStorageTest(unittest.TestCase):
         fs.add_file(os.path.join("path", "test.txt"), 1024)
         self.assertEqual(fs.file_name(0), "test.txt")
 
-    @unittest.skip("pending backport")
     def test_file_name_invalid(self) -> None:
         fs = lt.file_storage()
         with self.assertRaises(IndexError):
@@ -196,7 +190,6 @@ class FileStorageTest(unittest.TestCase):
         fs.add_file("test.txt", 1024)
         self.assertEqual(fs.file_size(0), 1024)
 
-    @unittest.skip("pending backport")
     def test_file_size_invalid(self) -> None:
         fs = lt.file_storage()
         with self.assertRaises(IndexError):
@@ -211,7 +204,6 @@ class FileStorageTest(unittest.TestCase):
         self.assertEqual(fs.file_offset(0), 0)
         self.assertEqual(fs.file_offset(1), 1024)
 
-    @unittest.skip("pending backport")
     def test_file_offset_invalid(self) -> None:
         fs = lt.file_storage()
         with self.assertRaises(IndexError):
@@ -224,7 +216,6 @@ class FileStorageTest(unittest.TestCase):
         fs.add_file("test.txt", 1024)
         self.assertEqual(fs.file_flags(0), 0)
 
-    @unittest.skip("pending backport")
     def test_file_flags_invalid(self) -> None:
         fs = lt.file_storage()
         with self.assertRaises(IndexError):
@@ -251,7 +242,6 @@ class FileStorageTest(unittest.TestCase):
         self.assertEqual(fs.piece_size(0), 1024)
         self.assertEqual(fs.piece_size(1), 16384)
 
-    @unittest.skip("pending backport")
     def test_name(self) -> None:
         fs = lt.file_storage()
         fs.add_file(os.path.join("path", "test.txt"), 1024)
@@ -263,7 +253,6 @@ class FileStorageTest(unittest.TestCase):
             fs.set_name(b"bytes")  # type: ignore
         self.assertEqual(fs.file_path(0), os.path.join("bytes", "test.txt"))
 
-    @unittest.skip("pending backport")
     def test_rename_file(self) -> None:
         fs = lt.file_storage()
         fs.add_file(os.path.join("path", "test.txt"), 1024)
@@ -274,7 +263,6 @@ class FileStorageTest(unittest.TestCase):
             fs.rename_file(0, os.path.join(b"path", b"bytes.txt"))  # type: ignore
         self.assertEqual(fs.file_path(0), os.path.join("path", "bytes.txt"))
 
-    @unittest.skip("pending backport")
     def test_rename_file_invalid(self) -> None:
         fs = lt.file_storage()
         with self.assertRaises(IndexError):
@@ -287,7 +275,6 @@ class FileStorageTest(unittest.TestCase):
         fs.add_file("test.txt", 1024)
         self.assertIsInstance(fs.hash(0), lt.sha1_hash)
 
-    @unittest.skip("pending backport")
     def test_hash_invalid(self) -> None:
         fs = lt.file_storage()
         self.assertEqual(fs.hash(0), lt.sha1_hash())
@@ -354,7 +341,6 @@ class CreateTorrentTest(unittest.TestCase):
         entry = ct.generate()
         self.assertEqual(entry[b"created by"], b"test")
 
-    @unittest.skip("pending backport")
     def test_set_hash_invalid(self) -> None:
         fs = lt.file_storage()
         ct = lt.create_torrent(fs)
@@ -363,7 +349,6 @@ class CreateTorrentTest(unittest.TestCase):
         with self.assertRaises(IndexError):
             ct.set_hash(-1, lib.get_random_bytes(20))
 
-    @unittest.skip("pending backport")
     def test_set_hash_short(self) -> None:
         fs = lt.file_storage()
         fs.add_file("test.txt", 1024)
@@ -371,7 +356,6 @@ class CreateTorrentTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             ct.set_hash(0, lib.get_random_bytes(19))
 
-    @unittest.skip("pending backport")
     def test_set_hash_long_deprecated(self) -> None:
         fs = lt.file_storage()
         fs.add_file("test.txt", 1024)
@@ -379,7 +363,6 @@ class CreateTorrentTest(unittest.TestCase):
         with self.assertWarns(DeprecationWarning):
             ct.set_hash(0, lib.get_random_bytes(21))
 
-    @unittest.skip("pending backport")
     def test_set_file_hash(self) -> None:
         fs = lt.file_storage()
         fs.add_file("test.txt", 1024)
@@ -390,7 +373,6 @@ class CreateTorrentTest(unittest.TestCase):
         entry = ct.generate()
         self.assertIn(b"sha1", entry[b"info"])
 
-    @unittest.skip("pending backport")
     def test_set_file_hash_invalid(self) -> None:
         fs = lt.file_storage()
         ct = lt.create_torrent(fs)
@@ -401,7 +383,6 @@ class CreateTorrentTest(unittest.TestCase):
             with self.assertRaises(IndexError):
                 ct.set_file_hash(-1, lib.get_random_bytes(20))
 
-    @unittest.skip("pending backport")
     def test_set_file_hash_short(self) -> None:
         fs = lt.file_storage()
         fs.add_file("test.txt", 1024)
@@ -410,7 +391,6 @@ class CreateTorrentTest(unittest.TestCase):
             with self.assertRaises(ValueError):
                 ct.set_file_hash(0, lib.get_random_bytes(19))
 
-    @unittest.skip("pending backport")
     def test_set_file_hash_long_deprecated(self) -> None:
         fs = lt.file_storage()
         fs.add_file("test.txt", 1024)
