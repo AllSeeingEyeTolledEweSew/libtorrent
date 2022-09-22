@@ -91,38 +91,14 @@ list dht_stats_routing_table(dht_stats_alert const& a)
    return result;
 }
 
-dict dht_immutable_item(dht_immutable_item_alert const& alert)
+bytes dht_mutable_item_salt(dht_mutable_item_alert const& alert)
 {
-    dict d;
-    d["key"] = alert.target;
-    d["value"] = bytes(alert.item.string());
-    return d;
+    return bytes(alert.salt);
 }
 
-dict dht_mutable_item(dht_mutable_item_alert const& alert)
+bytes dht_put_alert_salt(dht_put_alert const& alert)
 {
-    dict d;
-    d["key"] = bytes(alert.key.data(), alert.key.size());
-    d["value"] = bytes(alert.item.string());
-    d["signature"] = bytes(alert.signature.data(), alert.signature.size());
-    d["seq"] = alert.seq;
-    d["salt"] = bytes(alert.salt);
-    d["authoritative"] = alert.authoritative;
-    return d;
-}
-
-dict dht_put_item(dht_put_alert const& alert)
-{
-    dict d;
-    if (alert.target.is_all_zeros()) {
-        d["public_key"] = bytes(alert.public_key.data(), alert.public_key.size());
-        d["signature"] = bytes(alert.signature.data(), alert.signature.size());
-        d["seq"] = alert.seq;
-        d["salt"] = bytes(alert.salt);
-    } else {
-        d["target"] = alert.target;
-    }
-    return d;
+    return bytes(alert.salt);
 }
 
 dict session_stats_values(session_stats_alert const& alert)
@@ -1028,8 +1004,28 @@ void bind_alert()
 
     class_<picker_log_alert, bases<peer_alert>, noncopyable>(
        "picker_log_alert", no_init)
-        .add_property("picker_flags", &picker_log_alert::picker_flags)
+        .add_property("picker_flags", make_getter(&picker_log_alert::picker_flags, by_value()))
         .def("blocks", &picker_log_alert::blocks)
+        ;
+
+    enum_<picker_flags_t>("picker_flags_t")
+        .value("partial_ratio", picker_log_alert::partial_ratio)
+        .value("prioritize_partials", picker_log_alert::prioritize_partials)
+        .value("rarest_first_partials", picker_log_alert::rarest_first_partials)
+        .value("rarest_first", picker_log_alert::rarest_first)
+        .value("reverse_rarest_first", picker_log_alert::reverse_rarest_first)
+        .value("suggested_pieces", picker_log_alert::suggested_pieces)
+        .value("prio_sequential_pieces", picker_log_alert::prio_sequential_pieces)
+        .value("sequential_pieces", picker_log_alert::sequential_pieces)
+        .value("reverse_pieces", picker_log_alert::reverse_pieces)
+        .value("time_critical", picker_log_alert::time_critical)
+        .value("random_pieces", picker_log_alert::random_pieces)
+        .value("prefer_contiguous", picker_log_alert::prefer_contiguous)
+        .value("reverse_sequential", picker_log_alert::reverse_sequential)
+        .value("backup1", picker_log_alert::backup1)
+        .value("backup2", picker_log_alert::backup2)
+        .value("end_game", picker_log_alert::end_game)
+        .value("extent_affinity", picker_log_alert::extent_affinity)
         ;
 
     class_<lsd_error_alert, bases<alert>, noncopyable>(
@@ -1048,6 +1044,14 @@ void bind_alert()
         .def("log_message", &dht_log_alert::log_message)
     ;
 
+    enum_<dht_log_alert::dht_module_t>("dht_module_t")
+        .value("tracker", dht_log_alert::dht_module_t::tracker)
+        .value("node", dht_log_alert::dht_module_t::node)
+        .value("routing_table", dht_log_alert::dht_module_t::routing_table)
+        .value("rpc_manager", dht_log_alert::dht_module_t::rpc_manager)
+        .value("traversal", dht_log_alert::dht_module_t::traversal)
+        ;
+
     class_<dht_pkt_alert, bases<alert>, noncopyable>(
         "dht_pkt_alert", no_init)
         .add_property("pkt_buf", &get_pkt_buf)
@@ -1056,7 +1060,7 @@ void bind_alert()
     class_<dht_immutable_item_alert, bases<alert>, noncopyable>(
        "dht_immutable_item_alert", no_init)
         .add_property("target", make_getter(&dht_immutable_item_alert::target, by_value()))
-        .add_property("item", &dht_immutable_item)
+        .add_property("item", make_getter(&dht_immutable_item_alert::item, by_value()))
         ;
 
     class_<dht_mutable_item_alert, bases<alert>, noncopyable>(
@@ -1064,8 +1068,8 @@ void bind_alert()
         .add_property("key", make_getter(&dht_mutable_item_alert::key, by_value()))
         .add_property("signature", make_getter(&dht_mutable_item_alert::signature, by_value()))
         .def_readonly("seq", &dht_mutable_item_alert::seq)
-        .def_readonly("salt", &dht_mutable_item_alert::salt)
-        .add_property("item", &dht_mutable_item)
+        .add_property("salt", &dht_mutable_item_salt)
+        .add_property("item", make_getter(&dht_mutable_item_alert::item, by_value()))
         .def_readonly("authoritative", &dht_mutable_item_alert::authoritative)
         ;
 
@@ -1074,7 +1078,7 @@ void bind_alert()
         .add_property("target", make_getter(&dht_put_alert::target, by_value()))
         .add_property("public_key", make_getter(&dht_put_alert::public_key, by_value()))
         .add_property("signature", make_getter(&dht_put_alert::signature, by_value()))
-        .def_readonly("salt", &dht_put_alert::salt)
+        .add_property("salt", &dht_put_alert_salt)
         .def_readonly("seq", &dht_put_alert::seq)
         .def_readonly("num_success", &dht_put_alert::num_success)
         ;
@@ -1153,6 +1157,58 @@ void bind_alert()
         .add_property("metadata", make_getter(&torrent_conflict_alert::metadata, by_value()))
         ;
 
+    enum_<close_reason_t>("close_reason_t")
+        .value("none", close_reason_t::none)
+        .value("duplicate_peer_id", close_reason_t::duplicate_peer_id)
+        .value("torrent_removed", close_reason_t::torrent_removed)
+        .value("no_memory", close_reason_t::no_memory)
+        .value("port_blocked", close_reason_t::port_blocked)
+        .value("blocked", close_reason_t::blocked)
+        .value("upload_to_upload", close_reason_t::upload_to_upload)
+        .value("not_interested_upload_only", close_reason_t::not_interested_upload_only)
+        .value("timeout", close_reason_t::timeout)
+        .value("timed_out_interest", close_reason_t::timed_out_interest)
+        .value("timed_out_activity", close_reason_t::timed_out_activity)
+        .value("timed_out_handshake", close_reason_t::timed_out_handshake)
+        .value("timed_out_request", close_reason_t::timed_out_request)
+        .value("protocol_blocked", close_reason_t::protocol_blocked)
+        .value("peer_churn", close_reason_t::peer_churn)
+        .value("too_many_connections", close_reason_t::too_many_connections)
+        .value("too_many_files", close_reason_t::too_many_files)
+        .value("encryption_error", close_reason_t::encryption_error)
+        .value("invalid_info_hash", close_reason_t::invalid_info_hash)
+        .value("self_connection", close_reason_t::self_connection)
+        .value("invalid_metadata", close_reason_t::invalid_metadata)
+        .value("metadata_too_big", close_reason_t::metadata_too_big)
+        .value("message_too_big", close_reason_t::message_too_big)
+        .value("invalid_message_id", close_reason_t::invalid_message_id)
+        .value("invalid_message", close_reason_t::invalid_message)
+        .value("invalid_piece_message", close_reason_t::invalid_piece_message)
+        .value("invalid_have_message", close_reason_t::invalid_have_message)
+        .value("invalid_bitfield_message", close_reason_t::invalid_bitfield_message)
+        .value("invalid_choke_message", close_reason_t::invalid_choke_message)
+        .value("invalid_unchoke_message", close_reason_t::invalid_unchoke_message)
+        .value("invalid_interested_message", close_reason_t::invalid_interested_message)
+        .value("invalid_not_interested_message", close_reason_t::invalid_not_interested_message)
+        .value("invalid_request_message", close_reason_t::invalid_request_message)
+        .value("invalid_reject_message", close_reason_t::invalid_reject_message)
+        .value("invalid_allow_fast_message", close_reason_t::invalid_allow_fast_message)
+        .value("invalid_extended_message", close_reason_t::invalid_extended_message)
+        .value("invalid_cancel_message", close_reason_t::invalid_cancel_message)
+        .value("invalid_dht_port_message", close_reason_t::invalid_dht_port_message)
+        .value("invalid_suggest_message", close_reason_t::invalid_suggest_message)
+        .value("invalid_have_all_message", close_reason_t::invalid_have_all_message)
+        .value("invalid_dont_have_message", close_reason_t::invalid_dont_have_message)
+        .value("invalid_have_none_message", close_reason_t::invalid_have_none_message)
+        .value("invalid_pex_message", close_reason_t::invalid_pex_message)
+        .value("invalid_metadata_request_message", close_reason_t::invalid_metadata_request_message)
+        .value("invalid_metadata_message", close_reason_t::invalid_metadata_message)
+        .value("invalid_metadata_offset", close_reason_t::invalid_metadata_offset)
+        .value("request_when_choked", close_reason_t::request_when_choked)
+        .value("corrupt_pieces", close_reason_t::corrupt_pieces)
+        .value("pex_message_too_big", close_reason_t::pex_message_too_big)
+        .value("pex_too_frequent", close_reason_t::pex_too_frequent)
+        ;
 }
 
 #ifdef _MSC_VER
