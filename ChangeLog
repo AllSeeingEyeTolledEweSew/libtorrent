@@ -1,4 +1,5 @@
 	* type stubs are now included with the python bindings
+	* various fixes and DeprecationWarnings in the python bindings
 	* fix wanted_done/done accounting when force-rechecking
 	* expose userdata via torrent_handle (back-port from 2.0)
 	* fix renaming of filenames that are too long for the filesystem
