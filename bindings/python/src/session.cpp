@@ -23,6 +23,7 @@
 #include <libtorrent/session_status.hpp>
 #include <libtorrent/peer_class_type_filter.hpp>
 #include <libtorrent/torrent_status.hpp>
+#include <libtorrent/kademlia/announce_flags.hpp>
 
 #include <libtorrent/extensions/smart_ban.hpp>
 #include <libtorrent/extensions/ut_metadata.hpp>
@@ -377,6 +378,7 @@ namespace
 
     torrent_handle add_torrent(lt::session& s, dict params)
     {
+        python_deprecated("add_torrent(dict) is deprecated");
         add_torrent_params p;
         dict_to_add_torrent_params(params, p);
 
@@ -392,6 +394,7 @@ namespace
 
     void async_add_torrent(lt::session& s, dict params)
     {
+        python_deprecated("async_add_torrent(dict) is deprecated");
         add_torrent_params p;
         dict_to_add_torrent_params(params, p);
 
@@ -724,12 +727,13 @@ namespace
 	}
 
 #ifndef TORRENT_DISABLE_DHT
-    void dht_get_mutable_item(lt::session& ses, std::string key, std::string salt)
+    void dht_get_mutable_item(lt::session& ses, bytes key, bytes salt)
     {
-        TORRENT_ASSERT(key.size() == 32);
+        if (key.arr.size() != 32)
+            throw std::invalid_argument("key has wrong size, should be 32");
         std::array<char, 32> public_key;
-        std::copy(key.begin(), key.end(), public_key.begin());
-        ses.dht_get_item(public_key, salt);
+        std::copy(key.arr.begin(), key.arr.end(), public_key.begin());
+        ses.dht_get_item(public_key, salt.arr);
     }
 
     void put_string(entry& e, std::array<char, 64>& sig, std::int64_t& seq
@@ -749,20 +753,22 @@ namespace
         sig = sign.bytes;
     }
 
-    void dht_put_mutable_item(lt::session& ses, std::string private_key, std::string public_key,
-        std::string data, std::string salt)
+    void dht_put_mutable_item(lt::session& ses, bytes private_key, bytes public_key,
+        bytes data, bytes salt)
     {
-        TORRENT_ASSERT(private_key.size() == 64);
-        TORRENT_ASSERT(public_key.size() == 32);
+        if (private_key.arr.size() != 64)
+            throw std::invalid_argument("private key has wrong length, should be 64");
+        if (public_key.arr.size() != 32)
+            throw std::invalid_argument("public key has wrong length, should be 32");
         std::array<char, 32> key;
-        std::copy(public_key.begin(), public_key.end(), key.begin());
+        std::copy(public_key.arr.begin(), public_key.arr.end(), key.begin());
         ses.dht_put_item(key
-            , [pk=std::move(public_key), sk=std::move(private_key), d=std::move(data)]
+            , [pk=std::move(public_key.arr), sk=std::move(private_key.arr), d=std::move(data.arr)]
             (entry& e, std::array<char, 64>& sig, std::int64_t& seq, std::string const& salt)
             {
                 put_string(e, sig, seq, salt, pk, sk, d);
             }
-            , salt);
+            , salt.arr);
     }
 #endif
 
@@ -790,6 +796,19 @@ namespace
 		return ret;
 	}
 
+    void dht_announce(lt::session& ses, sha1_hash const& info_hash, int port, int flags)
+    {
+        ses.dht_announce(info_hash, port, lt::dht::announce_flags_t(flags));
+    }
+
+#if TORRENT_ABI_VERSION == 1
+    std::shared_ptr<session_status> session_status_constructor()
+    {
+        python_deprecated("session_status is deprecated");
+        return std::make_shared<session_status>();
+    }
+#endif
+
 } // anonymous namespace
 
 struct dummy1 {};
@@ -813,7 +832,8 @@ void bind_session()
     void (lt::session::*start_dht1)(entry const&) = &lt::session::start_dht;
 #endif
 
-    class_<session_status>("session_status")
+    class_<session_status>("session_status", no_init)
+        .def("__init__", make_constructor(&session_status_constructor))
         .def_readonly("has_incoming_connections", &session_status::has_incoming_connections)
 
         .def_readonly("upload_rate", &session_status::upload_rate)
@@ -1110,7 +1130,7 @@ void bind_session()
         .def("dht_put_immutable_item", allow_threads(dht_put_immutable_item))
         .def("dht_put_mutable_item", &dht_put_mutable_item)
         .def("dht_get_peers", allow_threads(&lt::session::dht_get_peers))
-        .def("dht_announce", allow_threads(&lt::session::dht_announce))
+        .def("dht_announce", &dht_announce, (arg("info_hash"), arg("port") = 0, arg("flags") = 0))
         .def("dht_live_nodes", allow_threads(&lt::session::dht_live_nodes))
         .def("dht_sample_infohashes", allow_threads(&lt::session::dht_sample_infohashes))
 #endif // TORRENT_DISABLE_DHT
@@ -1123,6 +1143,8 @@ void bind_session()
         .def(
             "add_torrent", depr(&add_torrent_depr)
           , (
+                arg("ti"),
+                arg("save"),
                 arg("resume_data") = entry(),
                 arg("storage_mode") = storage_mode_sparse,
                 arg("paused") = false
@@ -1248,6 +1270,7 @@ void bind_session()
 
     {
         scope s = class_<dummy9>("save_state_flags_t");
+        s.attr("all") = save_state_flags_t::all();
         s.attr("save_settings") = lt::session::save_settings;
         s.attr("save_dht_settings") = lt::session::save_dht_settings;
         s.attr("save_dht_state") = lt::session::save_dht_state;
@@ -1294,6 +1317,12 @@ void bind_session()
     scope().attr("create_ut_metadata_plugin") = "ut_metadata";
     scope().attr("create_ut_pex_plugin") = "ut_pex";
     scope().attr("create_smart_ban_plugin") = "smart_ban";
+
+    enum_<dht::announce_flags_t>("announce_flags_t")
+        .value("seed", lt::dht::announce::seed)
+        .value("implied_port", lt::dht::announce::implied_port)
+        .value("ssl_torrent", lt::dht::announce::ssl_torrent)
+    ;
 }
 
 #ifdef _MSC_VER

@@ -102,13 +102,6 @@ test_script:
     appveyor-retry b2.exe -l500 --hash openssl-version=pre1.1 warnings=all warnings-as-errors=on -j %NUMBER_OF_PROCESSORS% %compiler% address-model=%model% picker-debugging=on invariant-checks=full variant=%variant% %linkflags% %include% link=shared crypto=%crypto% asserts=on export-extra=on openssl-lib="c:\\OpenSSL-Win%model%\\lib" openssl-include="c:\\OpenSSL-Win%model%\\include"
     )
 
-  - cd %ROOT_DIRECTORY%\bindings\python
-  # we use 64 bit python build
-  - if defined python (
-    copy dependencies\*.* .
-    & c:\Python37-x64\python.exe test.py -b
-    )
-
   - if defined cmake (
     appveyor-retry ctest
     )

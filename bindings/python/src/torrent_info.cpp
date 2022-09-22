@@ -107,6 +107,8 @@ namespace
 
     bytes hash_for_piece(torrent_info const& ti, piece_index_t i)
     {
+        if ((i < 0) || (i >= ti.num_pieces()))
+            throw std::out_of_range("piece index out of range");
         return bytes(ti.hash_for_piece(i).to_string());
     }
 
@@ -326,6 +328,14 @@ std::shared_ptr<torrent_info> bencoded_constructor1(dict d, dict limits)
         , lt::from_span);
 }
 
+#if TORRENT_ABI_VERSION == 1
+std::shared_ptr<file_entry> file_entry_constructor()
+{
+    python_deprecated("file_entry is deprecated");
+    return std::make_shared<file_entry>();
+}
+#endif
+
 using by_value = return_value_policy<return_by_value>;
 void bind_torrent_info()
 {
@@ -411,7 +421,8 @@ void bind_torrent_info()
         ;
 
 #if TORRENT_ABI_VERSION == 1
-    class_<file_entry>("file_entry")
+    class_<file_entry>("file_entry", no_init)
+        .def("__init__", make_constructor(&file_entry_constructor))
         .def_readwrite("path", &file_entry::path)
         .def_readwrite("symlink_path", &file_entry::symlink_path)
         .def_readwrite("filehash", &file_entry::filehash)
