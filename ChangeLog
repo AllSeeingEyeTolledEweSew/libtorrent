@@ -1,4 +1,5 @@
 	* type stubs are now included with the python bindings
+	* various fixes and DeprecationWarnings in the python bindings
 	* add option to not memory map files below a certain size
 	* settings_pack now returns default values when queried for missing settings
 	* fix copy_file fall-back when SEEK_HOL/SEEK_DATA is not supported
