@@ -365,10 +365,11 @@ class LibtorrentBuildExt(BuildExtBase):
 
         self._maybe_add_arg("crypto=openssl")
 
-        if distutils.debug.DEBUG:
+        if True:
             self._maybe_add_arg("--debug-configuration")
             self._maybe_add_arg("--debug-building")
             self._maybe_add_arg("--debug-generators")
+            self._maybe_add_arg("-d+2")
 
         # Default feature configuration
         self._maybe_add_arg("deprecated-functions=on")
@@ -381,6 +382,7 @@ class LibtorrentBuildExt(BuildExtBase):
         # Cross-compiling logic: tricky, because autodetection is usually
         # better than our matching
         if sys.platform == "darwin":
+            self._maybe_add_arg("toolset=darwin")
             # macOS uses multi-arch binaries. Attempt to match the
             # configuration of the running python by translating distutils
             # platform modes to b2 architecture modes
@@ -393,6 +395,8 @@ class LibtorrentBuildExt(BuildExtBase):
                 self._maybe_add_arg("architecture=x86")
             elif machine in ("universal", "fat", "fat3", "fat64"):
                 self._maybe_add_arg("architecture=combined")
+            elif machine == "universal2":
+                self._maybe_add_arg("architecture=arm+x86")
             # NB: as of boost 1.75.0, b2 doesn't have a straightforward way to
             # build a "universal2" (arm64 + x86_64) binary
 
